@@ -5,12 +5,14 @@
 'use strict';
 
 import {
-IPCMessageReader, IPCMessageWriter,
-createConnection, IConnection, TextDocumentSyncKind,
-TextDocuments, ITextDocument, Diagnostic, DiagnosticSeverity,
-InitializeParams, InitializeResult, TextDocumentIdentifier, TextDocumentPosition,
-CompletionItem, CompletionItemKind, CompletionList
+    IPCMessageReader, IPCMessageWriter,
+    createConnection, IConnection, TextDocumentSyncKind,
+    TextDocuments, ITextDocument, Diagnostic, DiagnosticSeverity,
+    InitializeParams, InitializeResult, TextDocumentIdentifier, TextDocumentPosition,
+    CompletionItem, CompletionItemKind, CompletionList, Hover, CodeActionParams, Command
 } from 'vscode-languageserver';
+
+import { TextDocument } from 'vscode';
 
 import * as rp from 'request-promise';
 
@@ -28,25 +30,33 @@ documents.listen(connection);
 // After the server has started the client sends an initilize request. The server receives
 // in the passed params the rootPath of the workspace plus the client capabilites. 
 let workspaceRoot: string;
-connection.onInitialize((params): InitializeResult => {
-    workspaceRoot = params.rootPath;
-    return {
-        capabilities: {
-            // Tell the client that the server works in FULL text document sync mode
-            textDocumentSync: documents.syncKind,
-            // Tell the client that the server support code complete
-            completionProvider: {
-                resolveProvider: true
+connection.onInitialize(
+    (params) : InitializeResult => {
+        workspaceRoot = params.rootPath;
+        return {
+            capabilities: {
+                // Tell the client that the server works in FULL text document sync mode
+                textDocumentSync: documents.syncKind,
+                // Tell the client that the server support code complete
+                completionProvider: {
+                    resolveProvider: true
+                },
+                hoverProvider: true,
+                documentSymbolProvider : true,
+                signatureHelpProvider : { triggerCharacters : [ "(" ] },
             }
         }
     }
-});
+);
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
-documents.onDidChangeContent((change) => {
-    validateTextDocument(change.document);
-});
+documents.onDidChangeContent(
+    (change) => {
+        validateTextDocument(change.document);
+    }
+);
+
 
 // The settings interface describe the server relevant settings part
 interface Settings {
@@ -107,8 +117,6 @@ function transform(response:CompletionList): CompletionList {
     }
     
     return response;
-   
-    
 }
 
 // This handler provides the initial list of the completion items.
@@ -118,7 +126,9 @@ connection.onCompletion((textDocumentPosition: TextDocumentPosition) : Thenable<
 
     var position = textDocumentPosition.position;
     var line = lines[position.line];
-    var className = textDocumentPosition.uri.substring(textDocumentPosition.uri.lastIndexOf('/') + 1, textDocumentPosition.uri.lastIndexOf('.'));
+    var className = textDocumentPosition.uri.substring(
+        textDocumentPosition.uri.lastIndexOf('/') + 1, textDocumentPosition.uri.lastIndexOf('.')
+    );
     
     var body = {
         implem: {
@@ -135,10 +145,16 @@ connection.onCompletion((textDocumentPosition: TextDocumentPosition) : Thenable<
 
    //var _rp=  rp({ method: 'POST', uri: url + '/api/rest/classOrModule/' + className + '/Suggest', json: true, body: body });
    
-   var _rp= rp({ method: 'POST', uri: url + '/aMRS_ActiveModelService/suggest', json: true, body: {body: body} });
+   var _rp= rp(
+       {    
+           method: 'POST',
+           uri: url + '/aMRS_ActiveModelService/suggest', 
+           json: true,
+           body: {body: body}
+        });
     //return thenable;
     
-    return _rp.then((response) => transform(response) );
+    return _rp.then( (response) => transform(response) );
  
 });
 
@@ -165,6 +181,150 @@ connection.onDidCloseTextDocument((params) => {
 	connection.console.log(`${params.uri} closed.`);
 });
 */
+
+
+interface tOutline {
+    beginLine: number,
+    beginColumn: number,
+    endLine : number,
+    endColumn : number,
+    annotation : string,
+    name : string
+}
+
+interface tOutlines {
+    name : string,
+    outLines : tOutline[]
+}
+
+let outlines : tOutlines[];
+
+
+function updateOutlinesForClass(classname : string, source : string) : void {
+    
+    var _rp= rp(
+    {
+        method: 'GET',
+        uri: url + '/api/rest/classOrModule/' + classname + '/Outlines', 
+        body: {
+            "name": classname,
+            "ancestor": "",
+            "content": source
+        },
+        json: true
+    });
+    
+    _rp.then( (response) => {
+            outlines[classname] = response;
+            return outlines[classname];
+        })
+        .catch( (response) => {
+            connection.console.log('Error while updating outlines. \n' + response);
+        });
+        
+}
+
+connection.onHover((textDocumentPosition: TextDocumentPosition) : Hover => {
+    
+    var className = textDocumentPosition.uri.substring(
+        textDocumentPosition.uri.lastIndexOf('/') + 1, textDocumentPosition.uri.lastIndexOf('.')
+    );
+    
+    if (outlines == undefined) {
+        outlines = [];
+    }
+    
+    if ( !(className in outlines) ) {
+        return null;
+    }
+    
+    var result : Hover;
+    
+    for (var index = 0; index < outlines[className].outlines.length; index++) {
+        if (textDocumentPosition.position.line >= outlines[className].outlines[index].beginLine &&
+            textDocumentPosition.position.line <= outlines[className].outlines[index].endLine && 
+            textDocumentPosition.position.character >= outlines[className].outlines[index].beginColumn &&
+            textDocumentPosition.position.character <= outlines[className].outlines[index].endColumn)
+        {
+            result = {
+                "range": {
+                    "start": {
+                        "line": outlines[className].outlines[index].beginLine,
+                        "character": outlines[className].outlines[index].beginColumn
+                    },
+                    "end": {
+                        "line": outlines[className].outlines[index].endLine,
+                        "character": outlines[className].outlines[index].endColumn
+                    }
+                },
+                "contents": [
+                    outlines[className].outlines[index].documentation,
+                    { "language": "gold", "value": outlines[className].outlines[index].annotation }
+                ]
+            }
+            break;
+        }
+    }
+    
+    return result;
+});
+
+
+//Parse
+connection.onRequest(
+    {method: "parse"} , 
+    (params : {"classname": string, "source": string, notifyNewSource : boolean, textDocument : TextDocument} ) : void => {
+        
+    var _rp= rp(
+    {
+        method: 'POST',
+        uri: url + '/api/rest/classOrModule/' + params.classname + '/parse',
+        body: 
+        {
+            "name": params.classname,
+            "ancestor": "",
+            "content": params.source
+        },
+        json: true
+    });
+    
+    _rp.then( (response) => {
+        
+        let diagnostics: Diagnostic[] = [];
+        
+        if ("errors" in response && response.errors.length > 0) {
+            
+            let errors = response["errors"];
+            
+            for (var index = 0; index < errors.length; index++) {
+                diagnostics.push({
+                    "severity": DiagnosticSeverity.Error,
+                    "range": {
+                        "start": { "line": errors[index].line, "character": 0 /*errors[index].offSet-1*/ },
+                        "end": { "line": errors[index].line + 1, "character": 0 /*errors[index].offSet*/ }
+                    },
+                    "message": errors[index].msg
+                });
+            }
+        } else {
+            updateOutlinesForClass(params.classname, params.source);
+            if (params.notifyNewSource) {
+                connection.sendRequest(
+                    { method: "onParseSuccessful" }, 
+                    { docUri: params.textDocument.uri, newSource: response.content}
+                );
+            }
+            
+        }
+        
+        //Successfully parsed or not, send diagnostics anyway. 
+        connection.sendDiagnostics({ uri: params.textDocument.uri.external, diagnostics });
+    });
+});
+
+
+
+
 
 // Listen on the connection
 connection.listen();

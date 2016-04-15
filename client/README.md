@@ -40,16 +40,20 @@ Parsing, checkin and Scenario edition demo
 - [x] Toggle break points (via `Alt+m`)
 
 ## Roadmap (0.2) 17 avril 2016
-- [ ] Outline - regis
+- [x] Outline - regis
+- [ ] Symbol navigation - regis
+- [ ] Signature completion - regis
+- [ ] Improve autocompletion (suggestions appear a bit randomly, and not when needed e.g. when typeing '.' or '(') - regis
+- [ ] API proper and accurate documentation - all
 - [ ] Verify compatibility 6.1 / 6.1.5 (test multi user) - seb
-- [ ] Parsing errors iteration 2 (more native experience + code analyzer) - regis 
 - [ ] override var and method more performant + override dans ewam (60s in 0.1.x) - nicolas
-- [ ] Additional code snippets -all
-- [ ] Rename Symbol  
+- [ ] Additional code snippets - all
+- [ ] Rename Symbol
 - [ ] Additional validations (check repo is writable) - nicolas api
 - [ ] Other entity management (create new scenario, translation,...)
 - [ ] View in tree
 - [ ] Where used (as find all references in VS)
+- [ ] Parsing errors iteration 2 (more native experience + code analyzer) - regis 
 
 ## Roadmap (0.3)
 - [ ] Debugger

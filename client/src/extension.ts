@@ -4,8 +4,8 @@
 
 import * as path from 'path';
 
-//import { workspace, Disposable, ExtensionContext } from 'vscode';
 import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, TransportKind } from 'vscode-languageclient';
+import { languages, Diagnostic, DiagnosticSeverity } from 'vscode';
 
 import * as vscode from 'vscode';
 import * as axios from 'axios';
@@ -20,6 +20,12 @@ var parseBarItem: vscode.StatusBarItem;
 var parsingErrorDecorationType: vscode.TextEditorDecorationType;
 var breakPointDecorationType: vscode.TextEditorDecorationType;
 var config: vscode.WorkspaceConfiguration;
+
+// let diagnosticCollection = languages.createDiagnosticCollection("stuff");
+// let diagnostics : Diagnostic[] = [];
+        
+let languageClient : LanguageClient;
+
 
 function setDecoForStopPoints(methods) {
 
@@ -41,7 +47,6 @@ function setDecoForStopPoints(methods) {
 
 function refreshUI() {
     var name = getOpenClassName();
-
 
     if (name != '') {
         axios.get(config.get('url') + '/api/rest/classOrModule/' + name + '/entityStatus')
@@ -138,103 +143,61 @@ function checkInClass(name: string) {
         });
 }
 
-function getOpenClassName() {
-    var editor = vscode.window.activeTextEditor;
-
-    if (!editor) {
-        // return; // No open text editor
-    } else {
-        var fpath = editor.document.fileName.replace(/^.*[\\\/]/, '');
-        return fpath.substring(fpath.lastIndexOf('/') + 1, fpath.lastIndexOf('.'));
-    }
-}
-
-function parse() {
-    var editor: vscode.TextEditor;
-    var className = getOpenClassName();
-
-    editor = vscode.window.activeTextEditor;
-
-
-    if (!editor) {
-        // return; // No open text editor
-    } else {
-        var body = editor.document.getText();
-        axios.post(config.get('url') + '/api/rest/classOrModule/' + className + '/parse',
-            {
-                name: className,
-                ancestor: '',
-                content: body
-            })
-            .then(function(response) {
-                editor.edit(
-                    editBuilder => {
-                        var start: vscode.Position;
-                        start = new vscode.Position(0, 0);
-                        var lastLine: number;
-                        editor = vscode.window.activeTextEditor;
-                        //if (editor && !editor.document) {
-                        lastLine = editor.document.lineCount - 1;
-                        var end: vscode.Position;
-                        end = editor.document.lineAt(lastLine).range.end;
-                        var range: vscode.Range;
-
-                        range = new vscode.Range(start, end);
-                        editBuilder.replace(range, response.data["content"]);
-                        setDeco(response.data["errors"]);
-                        refreshUI();
-                        parseBarItem.color = 'white';
-                        //}
-                    });
-                //console.log(response);
-                //vscode.window.setStatusBarMessage('Parsing OK');
-
-
-
-            })
-            .catch(function(response) {
-                /*parseBarItem.color = 'red';
-                //console.log(response);
-                vscode.window.setStatusBarMessage('Parsing Errors');
-                //for (var error of response.data) {
-                //    vscode.window.showErrorMessage(error.msg + error.line);
-                //}
-                //vscode.window.showErrorMessage('Parsing error(s)');
-                if (response.data != undefined)
-                    setDeco(response.data);
-                refreshUI();
-                */
-            });
-    }
-}
-
-
-function setDeco(errors) {
-    var decos = [];
-    var activeEditor = vscode.window.activeTextEditor;
-    for (var error of errors) {
-        var start = new vscode.Position(error.line, 0);
-        var doc = activeEditor.document;
-        var line = doc.lineAt(error.line);
-        var l = line.text.length;
-        var end = new vscode.Position(error.line, l);
-
-        var r = new vscode.Range(start, end);
-        decos.push({ range: r, hoverMessage: error.msg });
+function getOpenClassName(doc? : vscode.TextDocument) {
+    if (!doc) {
+        doc  = vscode.window.activeTextEditor.document;
     }
 
-
-    activeEditor.setDecorations(parsingErrorDecorationType, decos);
+    var fpath = doc.fileName.replace(/^.*[\\\/]/, '');
+    return fpath.substring(fpath.lastIndexOf('/') + 1, fpath.lastIndexOf('.'));
 }
+
+function parse(notifyNewSource: Boolean = false, doc? : vscode.TextDocument) {
+    
+    if (!doc) {
+        doc  = vscode.window.activeTextEditor.document;
+    }
+    
+    languageClient.sendRequest(
+        { method: "parse" },
+        {
+            "classname": getOpenClassName(doc),
+            "source": doc.getText(),
+            "notifyNewSource" : notifyNewSource,
+            "textDocument": doc
+        } 
+    );
+}
+
+// function setDeco(errors) {
+//     // var decos = [];
+//     var activeEditor = vscode.window.activeTextEditor;
+//     for (var error of errors) {
+//         var start = new vscode.Position(error.line, 0);
+//         var doc = activeEditor.document;
+//         var line = doc.lineAt(error.line);
+//         var l = line.text.length;
+//         var end = new vscode.Position(error.line, l);
+
+//         var r = new vscode.Range(start, end);
+//         // decos.push({ range: r, hoverMessage: error.msg });
+//         diagnostics.push(new Diagnostic(r, error.msg, DiagnosticSeverity.Error));
+//     }
+    
+//     // activeEditor.setDecorations(parsingErrorDecorationType, decos);
+//     diagnosticCollection.set(activeEditor.document.uri, diagnostics);
+// }
 
 interface getScenarioCallBack { (className: string, scenarioName: string): void }
 
 function getDataAsTable(response): any[] {
     return response.data;
 }
+
 function getDataAsString(response): string {
     return response.data;
 }
+
 function getScenario(classname: string, callBack: getScenarioCallBack) {
 
     axios.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/scenarios')
@@ -278,8 +241,6 @@ function editScenario(classname: string, scenarioName: string) {
             console.log(response);
         });
 }
-
-
 
 function metaInfo() {
     var classname = '';
@@ -410,14 +371,12 @@ function searchClass(callBackFunc: searchClassCallBack) {
         );
 }
 
-
 function run() {
     config = vscode.workspace.getConfiguration('ewam');
     axios.post(config.get('url') + '/api/rest/run/' + config.get('className') + '/' + config.get('methodName'), config.get('args'))
         .then(function(response) {
         });
 }
-
 
 
 export function activate(context: vscode.ExtensionContext) {
@@ -450,12 +409,46 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     // Create the language client and start the client.
-    let disposable = new LanguageClient('Ewam VSServer', serverOptions, clientOptions).start();
-
+    languageClient = new LanguageClient('Ewam VSServer', serverOptions, clientOptions);
+    
+    let disposable = languageClient.start();
+    
+    languageClient.onRequest({method: "onParseSuccessful"}, (params: {newSource: string, docUri: vscode.Uri} ) => {
+        var editor: vscode.TextEditor = null;
+        
+        // Look for the editor we parsed
+        for (var index = 0; index < vscode.window.visibleTextEditors.length; index++) {
+            if (JSON.stringify(vscode.window.visibleTextEditors[index].document.uri) === 
+                    JSON.stringify(params.docUri))
+            {
+                editor = vscode.window.visibleTextEditors[index];
+                break;
+            }
+        }
+        
+        if (editor == null)
+            return;
+        
+        editor.edit(
+            editBuilder => {
+                var start: vscode.Position = new vscode.Position(0, 0);
+                var lastLine: number = editor.document.lineCount - 1;
+                
+                var end: vscode.Position = editor.document.lineAt(lastLine).range.end;
+                var range: vscode.Range = new vscode.Range(start, end);
+                
+                editBuilder.replace(range, params.newSource);
+                refreshUI();
+                parseBarItem.color = 'white';
+            }
+        );
+    } );
+    
+    
     // Push the disposable to the context's subscriptions so that the 
     // client can be deactivated on extension deactivation
     context.subscriptions.push(disposable);
-
+    
 
     var pathIcon = context.asAbsolutePath('images\\dot.png');
     parsingErrorDecorationType = vscode.window.createTextEditorDecorationType({
@@ -491,7 +484,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 
     disposable = vscode.commands.registerCommand('ewam.parse', function() {
-        parse();
+        parse(true);
     });
     context.subscriptions.push(disposable);
 
@@ -559,8 +552,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     reimplemBarItem.show();
 
-
-
     statusBarItemMain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 1);
     statusBarItemMain.text = '$(plus) New Class'
     statusBarItemMain.tooltip = 'New Class';
@@ -578,14 +569,27 @@ export function activate(context: vscode.ExtensionContext) {
     scenarioBarItem.tooltip = 'Edit scenarios';
     scenarioBarItem.command = 'ewam.scenario';
 
+    vscode.workspace.onDidChangeTextDocument((event : vscode.TextDocumentChangeEvent) => {
+            if (event.document.languageId == "gold") {
+                parse(false, event.document);
+            }
+        }
+    );
 
-
-
-
+    // vscode.workspace.onDidSaveTextDocument((doc : vscode.TextDocument) => {
+    //         if (doc.languageId == "gold") {
+    //             // Where do I get the current diagnostics ?
+                
+    //         }
+    //     }
+    // );
+    
     //disposable = vscode.window.setStatusBarMessage('Ready');
     //context.subscriptions.push(disposable);
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
+   return;
 }
+
