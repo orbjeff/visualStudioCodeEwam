@@ -22,7 +22,9 @@ Parsing, checkin and Scenario edition demo
 * set breakpoints in `extension.ts` to debug the extension
 * find output from your extension in the debug console
 
-## Features (0.1.x)
+# Roadmap
+
+## Alpha 0.1.x - *Delivered on March 30, 2016*
 - [x] Syntax highlightings 
 - [x] Code snippets
 - [x] Open a class, `Alt+o`  
@@ -39,25 +41,58 @@ Parsing, checkin and Scenario edition demo
 - [x] Override a method
 - [x] Toggle break points (via `Alt+m`)
 
-## Roadmap (0.2) 17 avril 2016
+## Alpha 0.2 - *Delivered on 29 April 2016*
+   
 - [x] Outline - regis
-- [ ] Symbol navigation - regis
-- [ ] Signature completion - regis
-- [ ] Improve autocompletion (suggestions appear a bit randomly, and not when needed e.g. when typeing '.' or '(') - regis
-- [ ] API proper and accurate documentation - all
-- [ ] Verify compatibility 6.1 / 6.1.5 (test multi user) - seb
-- [ ] override var and method more performant + override dans ewam (60s in 0.1.x) - nicolas
-- [ ] Additional code snippets - all
-- [ ] Rename Symbol
-- [ ] Additional validations (check repo is writable) - nicolas api
-- [ ] Other entity management (create new scenario, translation,...)
-- [ ] View in tree
-- [ ] Where used (as find all references in VS)
-- [ ] Parsing errors iteration 2 (more native experience + code analyzer) - regis 
+- [x] Symbol navigation (in documentation navigation + go to definition) - regis
+- [x] Improve autocompletion (suggestions appear a bit randomly, and not when needed e.g. when typeing '.' or '(') - regis
+- [x] Improve usability : retrieve metainfo on open
+- [x] Improve outline and symbols APIs : use ProduceGold
 
-## Roadmap (0.3)
+## Alpha 0.2.1 - *Delivered on May 29, 2016*        
+
+- [ ] Make parse without save
+- [ ] Native save (ctrl+s) : saves the module, even if inconsistent
+- [ ] Parse on open
+- [ ] Parse (F7) should be only a parse, no save
+
+## Alpha 0.2.2 - *Deliver on May 4, 2016*      
+
+- [ ] Go to Definition on local variables
+- [ ] Find references (Where used) - regis
+- [ ] Signature completion - regis
+
+## Testing - *Publish on 6 May 2016*
+
+- [ ] Verify compatibility 6.1 / 6.1.5 (test multi user) - seb
+
+## Upcoming tasks
+    
+- [ ] Class tree visualization : explore possibilities offered by virtual documents (investigate how to implement the previewHtml, cf. https://code.visualstudio.com/updates/vJanuary#_extension-authoring)
+- [ ] Parsing errors iteration 2 : code analyzer feedback 
+- [ ] Ergonomic way to override variables and methods
+- [ ] Additional code snippets
+- [ ] Symbol renaming
+- [ ] Additional validations (check repo is writable) - nicolas api
+- [ ] Other entity management (create new scenario, translation, ...)
+- [ ] Polish syntaxe highlightinh
+- [ ] Demo video (with OBS - https://obsproject.com/download)
+
+## Alpha 0.9 : Pre-beta
+
+- [ ] Design decisions concerning source code repository location and organization
+    - [ ] API repository context
+
+- [ ] Code and API re-fectoring  / architecturing / documentation
+    - [ ] API proper and accurate documentation
+    - [ ] API test
+    
+
+## 2.0 supported by eWAM 6.2
+- [ ] Breakpoint management
 - [ ] Debugger
 - [ ] Cache management
+
 
 
 ## Additional demos

@@ -23,7 +23,7 @@ var config: vscode.WorkspaceConfiguration;
 
 // let diagnosticCollection = languages.createDiagnosticCollection("stuff");
 // let diagnostics : Diagnostic[] = [];
-        
+     
 let languageClient : LanguageClient;
 
 
@@ -537,13 +537,10 @@ export function activate(context: vscode.ExtensionContext) {
     checkOutBarItem.tooltip = 'Check out';
     checkOutBarItem.command = 'ewam.checkOut';
 
-
     checkInBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     checkInBarItem.text = '$(cloud-upload) Check In'
     checkInBarItem.tooltip = 'Check in Class';
     checkInBarItem.command = 'ewam.checkIn';
-
-
 
     reimplemBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     reimplemBarItem.text = '$(jersey) Reimplem'
@@ -569,17 +566,41 @@ export function activate(context: vscode.ExtensionContext) {
     scenarioBarItem.tooltip = 'Edit scenarios';
     scenarioBarItem.command = 'ewam.scenario';
 
-    vscode.workspace.onDidChangeTextDocument((event : vscode.TextDocumentChangeEvent) => {
+    vscode.workspace.onDidChangeTextDocument(
+        (event : vscode.TextDocumentChangeEvent) => {
+            // console.log('opened document');
             if (event.document.languageId == "gold") {
+                // console.log('... a Gold document !');
                 parse(false, event.document);
             }
         }
     );
+    
+    // vscode.workspace.onDidSaveTextDocument(
+        // (event : vscode.TextDocumentChangeEvent) => {
+        //     // console.log('opened document');
+        //     if (event.document.languageId == "gold") {
+        //         // console.log('... a Gold document !');
+        //         parse(false, event.document);
+        //     }
+        // }
+    // );
+    
+    vscode.workspace.onDidOpenTextDocument(
+        (document : vscode.TextDocument) => {
+            // console.log('opened document');
+            if (document.languageId == "gold") {
+                // console.log('... a Gold document !');
+                parse(false, document);
+            }
+        }
+    );
+    
+    // vscode.workspace.
 
     // vscode.workspace.onDidSaveTextDocument((doc : vscode.TextDocument) => {
     //         if (doc.languageId == "gold") {
     //             // Where do I get the current diagnostics ?
-                
     //         }
     //     }
     // );

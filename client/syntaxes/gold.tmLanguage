@@ -8,9 +8,9 @@
 		<string>god</string>
 	</array>
 	<key>foldingStartMarker</key>
-	<string>(Function)|(Procedure)</string>
+	<string>(function)|(procedure)</string>
 	<key>foldingStopMarker</key>
-	<string>(EndFunc)|(EndProc)</string>
+	<string>(endFunc)|(endProc)</string>
 	<key>name</key>
 	<string>Gold</string>
 	<key>patterns</key>
@@ -134,40 +134,20 @@
 			</array>
 		</dict>
 		<dict>
-			<key>begin</key>
-			<string>(function)\b([a-zA-Z][a-zA-Z0-9]*)\b(\(.*\))?\b(return)\b([a-zA-Z][a-zA-Z0-9]*)</string>
-			<key>beginCaptures</key>
-			<dict>
-				<key>2</key>
-				<dict>
-					<key>name</key>
-					<string>entity.name.function</string>
-				</dict>
-			</dict>
-			<key>comment</key>
-			<string>Function definition</string>
-			<key>end</key>
-			<string>(endFunc)</string>
-			<key>name</key>
-			<string>entity.other</string>
-		</dict>
-		<dict>
-			<key>begin</key>
-			<string>(procedure)\b([a-zA-Z][a-zA-Z0-9]*)\b(\(.*\))?</string>
-			<key>beginCaptures</key>
-			<dict>
-				<key>2</key>
-				<dict>
-					<key>name</key>
-					<string>entity.name.function</string>
-				</dict>
-			</dict>
 			<key>comment</key>
 			<string>Procedure definition</string>
-			<key>end</key>
-			<string>(endProc)</string>
+			<key>match</key>
+			<string>(procedure)</string>
 			<key>name</key>
-			<string>entity.other</string>
+			<string>meta.function.gold</string>
+		</dict>
+		<dict>
+			<key>comment</key>
+			<string>Function definition</string>
+			<key>match</key>
+			<string>(function)</string>
+			<key>name</key>
+			<string>meta.function.gold</string>
 		</dict>
 	</array>
 	<key>scopeName</key>

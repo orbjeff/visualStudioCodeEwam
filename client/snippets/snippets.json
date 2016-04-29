@@ -13,6 +13,19 @@
 		"description": "Log output to console"
 	}
 */
+    "If-else-elseif-endif": {
+        "prefix": "if",
+        "body": [
+            "if ${condition}",
+            "  ${content}",
+            "elseif ${condition}",
+            "  ${content}",
+            "else",
+            "  ${content}",
+            "endIf"
+        ],
+        "description": "Foreach loop"
+    },
     "For Loop": {
         "prefix": "foreach",
         "body": [

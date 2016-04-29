@@ -9,12 +9,14 @@ import {
     createConnection, IConnection, TextDocumentSyncKind,
     TextDocuments, ITextDocument, Diagnostic, DiagnosticSeverity,
     InitializeParams, InitializeResult, TextDocumentIdentifier, TextDocumentPosition,
-    CompletionItem, CompletionItemKind, CompletionList, Hover, CodeActionParams, Command
+    CompletionItem, CompletionItemKind, CompletionList, Hover, CodeActionParams, Command,
+    SymbolInformation, ReferenceParams, Position
 } from 'vscode-languageserver';
 
-import { TextDocument } from 'vscode';
+import { TextDocument, Definition, Location } from 'vscode';
 
 import * as rp from 'request-promise';
+import * as fs from 'fs';
 
 // Create a connection for the server. The connection uses 
 // stdin / stdout for message passing
@@ -39,11 +41,14 @@ connection.onInitialize(
                 textDocumentSync: documents.syncKind,
                 // Tell the client that the server support code complete
                 completionProvider: {
-                    resolveProvider: true
+                    resolveProvider: true,
+                    triggerCharacters: [ "." ]
                 },
                 hoverProvider: true,
                 documentSymbolProvider : true,
                 signatureHelpProvider : { triggerCharacters : [ "(" ] },
+                definitionProvider : true,
+                referencesProvider : true
             }
         }
     }
@@ -145,7 +150,7 @@ connection.onCompletion((textDocumentPosition: TextDocumentPosition) : Thenable<
 
    //var _rp=  rp({ method: 'POST', uri: url + '/api/rest/classOrModule/' + className + '/Suggest', json: true, body: body });
    
-   var _rp= rp(
+   var _rp = rp(
        {    
            method: 'POST',
            uri: url + '/aMRS_ActiveModelService/suggest', 
@@ -182,30 +187,104 @@ connection.onDidCloseTextDocument((params) => {
 });
 */
 
+interface tPositionRange {
+    line : number,
+    column : number
+}
+
+
+interface tEntity {
+    name: string,
+    ownerName: string,
+    theType: string,
+    location: string,
+    description: string
+}
+
+interface tOutlineRange {
+    startpos : tPositionRange,
+    endpos : tPositionRange
+}
 
 interface tOutline {
-    beginLine: number,
-    beginColumn: number,
-    endLine : number,
-    endColumn : number,
+    range: tOutlineRange,
     annotation : string,
-    name : string
-}
-
-interface tOutlines {
+    documentation : string,
     name : string,
-    outLines : tOutline[]
+    kind : number,
+    entity: tEntity
 }
 
-let outlines : tOutlines[];
+interface tPosition {
+   line : number,
+   column : number
+}
 
+interface tRange {
+   startpos : tPosition,
+   endpos : tPosition
+}
+
+interface tVariable {
+   name : string,
+   variableType : string,
+   documentation : string,
+   range : tRange
+}
+
+interface tParameter {
+   name : string,
+   documentation : string,
+   paramType : string
+}
+
+interface tMethod {
+   name : string,
+   parameters : tParameter[],
+   returnType : string,
+   documentation : string,
+   range : tRange
+}
+
+interface tType {
+   name : string,
+   documentation : string,
+   range : tRange
+}
+
+interface tConstant {
+   name : string,
+   documentation : string,
+   range : tRange
+}
+
+interface tEntity {
+    Name : string
+}
+
+interface tMetaInfo {
+   moduleName : string,
+   variables : tVariable[],
+   methods : tMethod[],
+   constants : tConstant[],
+   types : tType[],
+   parents : tEntity[],
+   childs : tEntity[],
+   sisters : tEntity[],
+   outlines : tOutline[]
+}
+
+
+let outlines : tOutline[];
+let metainfo : tMetaInfo[];
+let repositoryPath : string;
 
 function updateOutlinesForClass(classname : string, source : string) : void {
     
     var _rp= rp(
     {
         method: 'GET',
-        uri: url + '/api/rest/classOrModule/' + classname + '/Outlines', 
+        uri: url + '/api/rest/classOrModule/' + classname + '/outlines', 
         body: {
             "name": classname,
             "ancestor": "",
@@ -215,65 +294,140 @@ function updateOutlinesForClass(classname : string, source : string) : void {
     });
     
     _rp.then( (response) => {
+            if (outlines == undefined) {
+                outlines = [];
+            }
             outlines[classname] = response;
             return outlines[classname];
         })
         .catch( (response) => {
             connection.console.log('Error while updating outlines. \n' + response);
         });
-        
 }
 
-connection.onHover((textDocumentPosition: TextDocumentPosition) : Hover => {
+
+function updateMetaInfoForClass(classname : string, source : string) : Thenable<tMetaInfo> {
+    
+    var _rp = rp(
+    {
+        method: 'GET',
+        uri: url + '/api/rest/repository/path', 
+        json: true
+    });
+    
+    _rp.then( (response) => {
+        repositoryPath = response._Result;
+    });
+    
+    var _rp = rp(
+    {
+        method: 'GET',
+        uri: url + '/api/rest/classOrModule/' + classname + '/metainfo', 
+        body: {
+            "name": classname,
+            "ancestor": "",
+            "content": source
+        },
+        json: true
+    });
+    
+    metainfo[classname] = {};
+    return _rp.then( (response) => {
+            if (metainfo == undefined) {
+                metainfo = [];
+            }
+            metainfo[classname] = response;
+            return metainfo[classname];
+        })
+        .catch( (response) => {
+            delete metainfo[classname];
+            connection.console.log('Error while updating meta-information. \n' + response);
+        });       
+}
+
+
+function getOutlineAt(position : Position, modulename : string) : tOutline {
+    for (var index = 0; index < metainfo[modulename].outlines.length; index++) {
+        if (position.line >= metainfo[modulename].outlines[index].range.startpos.line &&
+            position.line <= metainfo[modulename].outlines[index].range.endpos.line && 
+            position.character >= metainfo[modulename].outlines[index].range.startpos.column &&
+            position.character <= metainfo[modulename].outlines[index].range.endpos.column)
+        {
+            return metainfo[modulename].outlines[index];
+        }
+    }
+    
+    return null;
+}
+
+connection.onHover((textDocumentPosition: TextDocumentPosition) : Thenable<Hover> | Hover => {
     
     var className = textDocumentPosition.uri.substring(
         textDocumentPosition.uri.lastIndexOf('/') + 1, textDocumentPosition.uri.lastIndexOf('.')
     );
     
-    if (outlines == undefined) {
-        outlines = [];
+    if (metainfo == undefined) {
+        metainfo = [];
     }
     
-    if ( !(className in outlines) ) {
-        return null;
-    }
-    
-    var result : Hover;
-    
-    for (var index = 0; index < outlines[className].outlines.length; index++) {
-        if (textDocumentPosition.position.line >= outlines[className].outlines[index].beginLine &&
-            textDocumentPosition.position.line <= outlines[className].outlines[index].endLine && 
-            textDocumentPosition.position.character >= outlines[className].outlines[index].beginColumn &&
-            textDocumentPosition.position.character <= outlines[className].outlines[index].endColumn)
-        {
-            result = {
-                "range": {
-                    "start": {
-                        "line": outlines[className].outlines[index].beginLine,
-                        "character": outlines[className].outlines[index].beginColumn
+    if ( !(className in metainfo) ) {
+        updateMetaInfoForClass(className, "")
+        .then(
+            (meta : tMetaInfo) => {
+                let outline : tOutline = getOutlineAt(textDocumentPosition.position, className);
+                 
+                return {
+                    "range": {
+                        "start": {
+                            "line": outline.range.startpos.line,
+                            "character": outline.range.startpos.column
+                        },
+                        "end": {
+                            "line": outline.range.endpos.line,
+                            "character": outline.range.endpos.column
+                        }
                     },
-                    "end": {
-                        "line": outlines[className].outlines[index].endLine,
-                        "character": outlines[className].outlines[index].endColumn
-                    }
-                },
-                "contents": [
-                    outlines[className].outlines[index].documentation,
-                    { "language": "gold", "value": outlines[className].outlines[index].annotation }
-                ]
+                    "contents": [
+                        outline.documentation,
+                        { "language": "gold", "value": outline.annotation }
+                    ]
+                }
             }
-            break;
+        );
+    } else {
+        let outline : tOutline = getOutlineAt(textDocumentPosition.position, className);
+            
+        return {
+            "range": {
+                "start": {
+                    "line": outline.range.startpos.line,
+                    "character": outline.range.startpos.column
+                },
+                "end": {
+                    "line": outline.range.endpos.line,
+                    "character": outline.range.endpos.column
+                }
+            },
+            "contents": [
+                outline.documentation,
+                { "language": "gold", "value": outline.annotation }
+            ]
         }
     }
     
-    return result;
+    
+    
 });
 
 
 //Parse
-connection.onRequest(
-    {method: "parse"} , 
-    (params : {"classname": string, "source": string, notifyNewSource : boolean, textDocument : TextDocument} ) : void => {
+connection.onRequest({method: "parse"} , 
+                     (params : {
+                        "classname": string,
+                        "source": string,
+                        "notifyNewSource" : boolean,
+                        "textDocument" : TextDocument }) : void => 
+{
         
     var _rp= rp(
     {
@@ -307,14 +461,13 @@ connection.onRequest(
                 });
             }
         } else {
-            updateOutlinesForClass(params.classname, params.source);
             if (params.notifyNewSource) {
+                updateMetaInfoForClass(params.classname, params.source);
                 connection.sendRequest(
                     { method: "onParseSuccessful" }, 
                     { docUri: params.textDocument.uri, newSource: response.content}
                 );
             }
-            
         }
         
         //Successfully parsed or not, send diagnostics anyway. 
@@ -322,9 +475,249 @@ connection.onRequest(
     });
 });
 
+// ;VS CODE enum CompletionItemKind {
+// ;    Text = 1,
+// ;    Method = 2,
+// ;    Function = 3,
+// ;    Constructor = 4,
+// ;    Field = 5,
+// ;    Variable = 6,
+// ;    Class = 7,
+// ;    Interface = 8,
+// ;    Module = 9,
+// ;    Property = 10,
+// ;    Unit = 11,
+// ;    Value = 12,
+// ;    Enum = 13,
+// ;    Keyword = 14,
+// ;    Snippet = 15,
+// ;    Color = 16,
+// ;    File = 17,
+// ;    Reference = 18,
+// ;}
 
+connection.onDocumentSymbol( 
+    (docIdentifier : TextDocumentIdentifier) : SymbolInformation[] => 
+    {
+        var className = docIdentifier.uri.substring(
+            docIdentifier.uri.lastIndexOf('/') + 1, docIdentifier.uri.lastIndexOf('.')
+        );
+        
+        // If class name isn't found, bail out
+        if ( !(className in metainfo))  {
+            return [];
+        }
+        
+        let result : SymbolInformation[] = [];
+        
+        for (var index = 0; index < metainfo[className].variables.length; index++) {
+            result.push({
+                "name": metainfo[className].variables[index].name + " : " + metainfo[className].variables[index].variableType,
+                "kind": 5,
+                "location": {
+                    "uri": docIdentifier.uri,
+                    "range": {
+                        "start": {
+                            "line": metainfo[className].variables[index].range.startpos.line,
+                            "character": metainfo[className].variables[index].range.startpos.column
+                        },
+                        "end": {
+                            "line": metainfo[className].variables[index].range.endpos.line,
+                            "character": metainfo[className].variables[index].range.endpos.column
+                        }
+                    }
+                },
+                "containerName": className
+            });
+        }
+        
+        for (var index = 0; index < metainfo[className].methods.length; index++) {
+            
+            let parameters : string = '';
+            
+            for (var paramRank = 0; paramRank < metainfo[className].methods[index].parameters.length; paramRank++) {
+                if (paramRank >= 1)
+                    parameters += ', ';
+                    
+                parameters += metainfo[className].methods[index].parameters[paramRank].name + ' : ' + 
+                    metainfo[className].methods[index].parameters[paramRank].paramType
+            }
+            
+            result.push({
+                "name": metainfo[className].methods[index].name + '(' + parameters + ')',
+                "kind": 2,
+                "location": {
+                    "uri": docIdentifier.uri,
+                    "range": {
+                        "start": {
+                            "line": metainfo[className].methods[index].range.startpos.line,
+                            "character": metainfo[className].methods[index].range.startpos.column
+                        },
+                        "end": {
+                            "line": metainfo[className].methods[index].range.endpos.line,
+                            "character": metainfo[className].methods[index].range.endpos.column
+                        }
+                    }
+                },
+                "containerName": className
+            });
+        }
+        
+        for (var index = 0; index < metainfo[className].types.length; index++) {
+            result.push({
+                "name": metainfo[className].types[index].name,
+                "kind": 13,
+                "location": {
+                    "uri": docIdentifier.uri,
+                    "range": {
+                        "start": {
+                            "line": metainfo[className].types[index].range.startpos.line,
+                            "character": metainfo[className].types[index].range.startpos.column
+                        },
+                        "end": {
+                            "line": metainfo[className].types[index].range.endpos.line,
+                            "character": metainfo[className].types[index].range.endpos.column
+                        }
+                    }
+                },
+                "containerName": className
+            });
+        }
+        
+        return result;
+    }
+);
 
+function FindDefinition(identifier : string, ownerName : string) : Thenable<tRange>
+{
+    return updateMetaInfoForClass(ownerName, "").then(
+        (meta : tMetaInfo) : tRange => {
+            for (var index = 0; index < meta.outlines.length; index++) {
+                
+                if (meta.methods[index].name == identifier) {
+                    return meta.methods[index].range;
+                    
+                } else if (meta.variables[index].name == identifier) {
+                    return meta.variables[index].range;
+                    
+                } else if (meta.constants[index].name == identifier) {
+                    return meta.constants[index].range;
+                    
+                } else if (meta.types[index].name == identifier) {
+                    return meta.types[index].range;
+                    
+                }
+            }
+            return null; 
+        }
+    );
+}
 
+connection.onDefinition((position : TextDocumentPosition) : Definition | Thenable<Definition> => 
+{
+    // export declare type Definition = Location | Location[];
+    // export interface Location {
+    //     uri: string;
+    //     range: Range;
+    // }
+    let moduleName : string = 
+        position.uri.substring(
+            position.uri.lastIndexOf('/') + 1, position.uri.lastIndexOf('.') );
+    
+    let outline : tOutline = getOutlineAt(position.position, moduleName);
+
+    let repoReq = rp({
+        method: 'GET',
+        uri: url + '/api/rest/repository/path', 
+        json: true });
+        
+    // outline.entity is defined in a class or module
+    // Get definition position inside the owner
+    if (outline.entity.ownerName != "") {
+
+        let definitionReq = rp({
+            method: 'GET',
+            uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
+            json: true });
+            
+        let contentReq = rp({
+            method: 'GET',
+            uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName,
+            json: true });
+            
+        return repoReq
+        .then((repoPath) => {
+            return definitionReq
+        .then((defRange : tRange) => {
+            // Retrive the owner content
+            return contentReq
+        .then((response) => {
+            fs.writeFile(repoPath["_Result"] + "/" + outline.entity.ownerName + ".gold", response["content"]);
+            
+            return {
+                uri: "file:///" + repoPath["_Result"] + "/" + outline.entity.ownerName + ".gold",
+                range : {
+                    "start": {
+                        "line": defRange.startpos.line,
+                        "character": defRange.startpos.column
+                    },
+                    "end": {
+                        "line": defRange.endpos.line,
+                        "character": defRange.endpos.column
+                    }
+                }
+            };
+        });
+        });        
+        });
+        
+    } else {
+    // outline.entity a class or module
+    // Give difinition of the class, with position 0
+    
+    
+        let contentReq = rp({
+            method: 'GET',
+            uri: url + '/api/rest/classOrModule/' + outline.name,
+            json: true });
+            
+        return repoReq
+        .then((repoPath) => {
+            // Retrive the owner content
+            return contentReq
+        .then((response) => { 
+            fs.writeFile(repoPath["_Result"] + "/" + outline.name + ".gold", response["content"]);
+            
+            return {
+                uri: "file:///" + repoPath["_Result"] + "/" + outline.name + ".gold",
+                range : {
+                    "start": {
+                        "line": 0,
+                        "character": 0
+                    },
+                    "end": {
+                        "line": 0,
+                        "character": 0
+                    }
+                }
+            };
+        });
+        });
+
+    
+    }
+    
+    
+});
+
+connection.onReferences((ReferenceParams) : Location[] => {
+    // export interface Location {
+    //     uri: string;
+    //     range: Range;
+    // }
+    // Where used API
+    return null;
+});
 
 // Listen on the connection
 connection.listen();
