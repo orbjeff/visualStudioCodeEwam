@@ -475,6 +475,63 @@ connection.onRequest({method: "parse"} ,
     });
 });
 
+
+connection.onRequest({method: "save"} , 
+                     (params : {
+                        "classname": string,
+                        "source": string,
+                        "notifyNewSource" : boolean,
+                        "textDocument" : TextDocument }) : void => 
+{
+        
+    var _rp= rp(
+    {
+        method: 'POST',
+        uri: url + '/api/rest/classOrModule/' + params.classname + '/save',
+        body: 
+        {
+            "name": params.classname,
+            "ancestor": "",
+            "content": params.source
+        },
+        json: true
+    });
+    
+    _rp.then( (response) => {
+        
+        let diagnostics: Diagnostic[] = [];
+        
+        if ("errors" in response && response.errors.length > 0) {
+            
+            let errors = response["errors"];
+            
+            for (var index = 0; index < errors.length; index++) {
+                diagnostics.push({
+                    "severity": DiagnosticSeverity.Error,
+                    "range": {
+                        "start": { "line": errors[index].line, "character": 0 /*errors[index].offSet-1*/ },
+                        "end": { "line": errors[index].line + 1, "character": 0 /*errors[index].offSet*/ }
+                    },
+                    "message": errors[index].msg
+                });
+            }
+        } else {
+            if (params.notifyNewSource) {
+                updateMetaInfoForClass(params.classname, params.source);
+                connection.sendRequest(
+                    { method: "onSaveSuccessful" },
+                    { docUri: params.textDocument.uri, newSource: response.content}
+                );
+            }
+        }
+        
+        //Successfully parsed or not, send diagnostics anyway. 
+        connection.sendDiagnostics({ uri: params.textDocument.uri.external, diagnostics });
+    });
+});
+
+
+
 // ;VS CODE enum CompletionItemKind {
 // ;    Text = 1,
 // ;    Method = 2,
@@ -497,94 +554,100 @@ connection.onRequest({method: "parse"} ,
 // ;}
 
 connection.onDocumentSymbol( 
-    (docIdentifier : TextDocumentIdentifier) : SymbolInformation[] => 
+    (docIdentifier : TextDocumentIdentifier) : Thenable<SymbolInformation[]> => 
     {
         var className = docIdentifier.uri.substring(
             docIdentifier.uri.lastIndexOf('/') + 1, docIdentifier.uri.lastIndexOf('.')
         );
         
         // If class name isn't found, bail out
-        if ( !(className in metainfo))  {
-            return [];
+        if (metainfo == undefined) {
+            metainfo = [];
         }
         
-        let result : SymbolInformation[] = [];
+        if ( !(className in metainfo) ) {
+            return updateMetaInfoForClass(className, "")
+                .then((meta : tMetaInfo) => {
         
-        for (var index = 0; index < metainfo[className].variables.length; index++) {
-            result.push({
-                "name": metainfo[className].variables[index].name + " : " + metainfo[className].variables[index].variableType,
-                "kind": 5,
-                "location": {
-                    "uri": docIdentifier.uri,
-                    "range": {
-                        "start": {
-                            "line": metainfo[className].variables[index].range.startpos.line,
-                            "character": metainfo[className].variables[index].range.startpos.column
+                let result : SymbolInformation[] = [];
+            
+                for (var index = 0; index < metainfo[className].variables.length; index++) {
+                    result.push({
+                        "name": metainfo[className].variables[index].name + " : " + metainfo[className].variables[index].variableType,
+                        "kind": 5,
+                        "location": {
+                            "uri": docIdentifier.uri,
+                            "range": {
+                                "start": {
+                                    "line": metainfo[className].variables[index].range.startpos.line,
+                                    "character": metainfo[className].variables[index].range.startpos.column
+                                },
+                                "end": {
+                                    "line": metainfo[className].variables[index].range.endpos.line,
+                                    "character": metainfo[className].variables[index].range.endpos.column
+                                }
+                            }
                         },
-                        "end": {
-                            "line": metainfo[className].variables[index].range.endpos.line,
-                            "character": metainfo[className].variables[index].range.endpos.column
-                        }
-                    }
-                },
-                "containerName": className
-            });
-        }
-        
-        for (var index = 0; index < metainfo[className].methods.length; index++) {
-            
-            let parameters : string = '';
-            
-            for (var paramRank = 0; paramRank < metainfo[className].methods[index].parameters.length; paramRank++) {
-                if (paramRank >= 1)
-                    parameters += ', ';
+                        "containerName": className
+                    });
+                }
+                
+                for (var index = 0; index < metainfo[className].methods.length; index++) {
                     
-                parameters += metainfo[className].methods[index].parameters[paramRank].name + ' : ' + 
-                    metainfo[className].methods[index].parameters[paramRank].paramType
-            }
-            
-            result.push({
-                "name": metainfo[className].methods[index].name + '(' + parameters + ')',
-                "kind": 2,
-                "location": {
-                    "uri": docIdentifier.uri,
-                    "range": {
-                        "start": {
-                            "line": metainfo[className].methods[index].range.startpos.line,
-                            "character": metainfo[className].methods[index].range.startpos.column
-                        },
-                        "end": {
-                            "line": metainfo[className].methods[index].range.endpos.line,
-                            "character": metainfo[className].methods[index].range.endpos.column
-                        }
+                    let parameters : string = '';
+                    
+                    for (var paramRank = 0; paramRank < metainfo[className].methods[index].parameters.length; paramRank++) {
+                        if (paramRank >= 1)
+                            parameters += ', ';
+                            
+                        parameters += metainfo[className].methods[index].parameters[paramRank].name + ' : ' + 
+                            metainfo[className].methods[index].parameters[paramRank].paramType
                     }
-                },
-                "containerName": className
+                    
+                    result.push({
+                        "name": metainfo[className].methods[index].name + '(' + parameters + ')',
+                        "kind": 2,
+                        "location": {
+                            "uri": docIdentifier.uri,
+                            "range": {
+                                "start": {
+                                    "line": metainfo[className].methods[index].range.startpos.line,
+                                    "character": metainfo[className].methods[index].range.startpos.column
+                                },
+                                "end": {
+                                    "line": metainfo[className].methods[index].range.endpos.line,
+                                    "character": metainfo[className].methods[index].range.endpos.column
+                                }
+                            }
+                        },
+                        "containerName": className
+                    });
+                }
+                
+                for (var index = 0; index < metainfo[className].types.length; index++) {
+                    result.push({
+                        "name": metainfo[className].types[index].name,
+                        "kind": 13,
+                        "location": {
+                            "uri": docIdentifier.uri,
+                            "range": {
+                                "start": {
+                                    "line": metainfo[className].types[index].range.startpos.line,
+                                    "character": metainfo[className].types[index].range.startpos.column
+                                },
+                                "end": {
+                                    "line": metainfo[className].types[index].range.endpos.line,
+                                    "character": metainfo[className].types[index].range.endpos.column
+                                }
+                            }
+                        },
+                        "containerName": className
+                    });
+                }
+                
+                return result;
             });
         }
-        
-        for (var index = 0; index < metainfo[className].types.length; index++) {
-            result.push({
-                "name": metainfo[className].types[index].name,
-                "kind": 13,
-                "location": {
-                    "uri": docIdentifier.uri,
-                    "range": {
-                        "start": {
-                            "line": metainfo[className].types[index].range.startpos.line,
-                            "character": metainfo[className].types[index].range.startpos.column
-                        },
-                        "end": {
-                            "line": metainfo[className].types[index].range.endpos.line,
-                            "character": metainfo[className].types[index].range.endpos.column
-                        }
-                    }
-                },
-                "containerName": className
-            });
-        }
-        
-        return result;
     }
 );
 

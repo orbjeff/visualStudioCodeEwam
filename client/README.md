@@ -49,15 +49,14 @@ Parsing, checkin and Scenario edition demo
 - [x] Improve usability : retrieve metainfo on open
 - [x] Improve outline and symbols APIs : use ProduceGold
 
-## Alpha 0.2.1 - *Delivered on May 29, 2016*        
+## Alpha 0.2.1 - *Deliver on May 4, 2016*    
 
-- [ ] Make parse without save
-- [ ] Native save (ctrl+s) : saves the module, even if inconsistent
-- [ ] Parse on open
-- [ ] Parse (F7) should be only a parse, no save
+- [x] Make parse without save
+- [x] Parse on open
+- [x] Parse (F7) should be only a parse, no save
+- [x] Native save (ctrl+s) : saves the module
 
-## Alpha 0.2.2 - *Deliver on May 4, 2016*      
-
+- [ ] API: saves the module (ctrl+s) **even if inconsistent**
 - [ ] Go to Definition on local variables
 - [ ] Find references (Where used) - regis
 - [ ] Signature completion - regis
