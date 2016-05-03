@@ -10,7 +10,8 @@ import {
     TextDocuments, ITextDocument, Diagnostic, DiagnosticSeverity,
     InitializeParams, InitializeResult, TextDocumentIdentifier, TextDocumentPosition,
     CompletionItem, CompletionItemKind, CompletionList, Hover, CodeActionParams, Command,
-    SymbolInformation, ReferenceParams, Position
+    SymbolInformation, ReferenceParams, Position, SignatureHelp, ParameterInformation, 
+    SignatureInformation
 } from 'vscode-languageserver';
 
 import { TextDocument, Definition, Location } from 'vscode';
@@ -42,11 +43,11 @@ connection.onInitialize(
                 // Tell the client that the server support code complete
                 completionProvider: {
                     resolveProvider: true,
-                    triggerCharacters: [ "." ]
+                    triggerCharacters: [ "."/*, "(", ","*/ ]
                 },
                 hoverProvider: true,
                 documentSymbolProvider : true,
-                signatureHelpProvider : { triggerCharacters : [ "(" ] },
+                signatureHelpProvider : { triggerCharacters : [ "(", "," ] },
                 definitionProvider : true,
                 referencesProvider : true
             }
@@ -345,7 +346,6 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
         });       
 }
 
-
 function getOutlineAt(position : Position, modulename : string) : tOutline {
     for (var index = 0; index < metainfo[modulename].outlines.length; index++) {
         if (position.line >= metainfo[modulename].outlines[index].range.startpos.line &&
@@ -531,30 +531,112 @@ connection.onRequest({method: "save"} ,
 });
 
 
+/*
+    ;VS CODE enum CompletionItemKind {
+    ;    Text = 1,
+    ;    Method = 2,
+    ;    Function = 3,
+    ;    Constructor = 4,
+    ;    Field = 5,
+    ;    Variable = 6,
+    ;    Class = 7,
+    ;    Interface = 8,
+    ;    Module = 9,
+    ;    Property = 10,
+    ;    Unit = 11,
+    ;    Value = 12,
+    ;    Enum = 13,
+    ;    Keyword = 14,
+    ;    Snippet = 15,
+    ;    Color = 16,
+    ;    File = 17,
+    ;    Reference = 18,
+    ;}
+*/
 
-// ;VS CODE enum CompletionItemKind {
-// ;    Text = 1,
-// ;    Method = 2,
-// ;    Function = 3,
-// ;    Constructor = 4,
-// ;    Field = 5,
-// ;    Variable = 6,
-// ;    Class = 7,
-// ;    Interface = 8,
-// ;    Module = 9,
-// ;    Property = 10,
-// ;    Unit = 11,
-// ;    Value = 12,
-// ;    Enum = 13,
-// ;    Keyword = 14,
-// ;    Snippet = 15,
-// ;    Color = 16,
-// ;    File = 17,
-// ;    Reference = 18,
-// ;}
+function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] {
+    let result : SymbolInformation[] = [];
+
+    for (var index = 0; index < metainfo[className].variables.length; index++) {
+        result.push({
+            "name": metainfo[className].variables[index].name + " : " + metainfo[className].variables[index].variableType,
+            "kind": 5,
+            "location": {
+                "uri": uri,
+                "range": {
+                    "start": {
+                        "line": metainfo[className].variables[index].range.startpos.line,
+                        "character": metainfo[className].variables[index].range.startpos.column
+                    },
+                    "end": {
+                        "line": metainfo[className].variables[index].range.endpos.line,
+                        "character": metainfo[className].variables[index].range.endpos.column
+                    }
+                }
+            },
+            "containerName": className
+        });
+    }
+    
+    for (var index = 0; index < metainfo[className].methods.length; index++) {
+        
+        let parameters : string = '';
+        
+        for (var paramRank = 0; paramRank < metainfo[className].methods[index].parameters.length; paramRank++) {
+            if (paramRank >= 1)
+                parameters += ', ';
+                
+            parameters += metainfo[className].methods[index].parameters[paramRank].name + ' : ' + 
+                metainfo[className].methods[index].parameters[paramRank].paramType
+        }
+        
+        result.push({
+            "name": metainfo[className].methods[index].name + '(' + parameters + ')',
+            "kind": 2,
+            "location": {
+                "uri": uri,
+                "range": {
+                    "start": {
+                        "line": metainfo[className].methods[index].range.startpos.line,
+                        "character": metainfo[className].methods[index].range.startpos.column
+                    },
+                    "end": {
+                        "line": metainfo[className].methods[index].range.endpos.line,
+                        "character": metainfo[className].methods[index].range.endpos.column
+                    }
+                }
+            },
+            "containerName": className
+        });
+    }
+    
+    for (var index = 0; index < metainfo[className].types.length; index++) {
+        result.push({
+            "name": metainfo[className].types[index].name,
+            "kind": 13,
+            "location": {
+                "uri": uri,
+                "range": {
+                    "start": {
+                        "line": metainfo[className].types[index].range.startpos.line,
+                        "character": metainfo[className].types[index].range.startpos.column
+                    },
+                    "end": {
+                        "line": metainfo[className].types[index].range.endpos.line,
+                        "character": metainfo[className].types[index].range.endpos.column
+                    }
+                }
+            },
+            "containerName": className
+        });
+    }
+    
+    return result;
+
+}
 
 connection.onDocumentSymbol( 
-    (docIdentifier : TextDocumentIdentifier) : Thenable<SymbolInformation[]> => 
+    (docIdentifier : TextDocumentIdentifier) : SymbolInformation[] | Thenable<SymbolInformation[]> => 
     {
         var className = docIdentifier.uri.substring(
             docIdentifier.uri.lastIndexOf('/') + 1, docIdentifier.uri.lastIndexOf('.')
@@ -567,86 +649,11 @@ connection.onDocumentSymbol(
         
         if ( !(className in metainfo) ) {
             return updateMetaInfoForClass(className, "")
-                .then((meta : tMetaInfo) => {
-        
-                let result : SymbolInformation[] = [];
-            
-                for (var index = 0; index < metainfo[className].variables.length; index++) {
-                    result.push({
-                        "name": metainfo[className].variables[index].name + " : " + metainfo[className].variables[index].variableType,
-                        "kind": 5,
-                        "location": {
-                            "uri": docIdentifier.uri,
-                            "range": {
-                                "start": {
-                                    "line": metainfo[className].variables[index].range.startpos.line,
-                                    "character": metainfo[className].variables[index].range.startpos.column
-                                },
-                                "end": {
-                                    "line": metainfo[className].variables[index].range.endpos.line,
-                                    "character": metainfo[className].variables[index].range.endpos.column
-                                }
-                            }
-                        },
-                        "containerName": className
-                    });
-                }
-                
-                for (var index = 0; index < metainfo[className].methods.length; index++) {
-                    
-                    let parameters : string = '';
-                    
-                    for (var paramRank = 0; paramRank < metainfo[className].methods[index].parameters.length; paramRank++) {
-                        if (paramRank >= 1)
-                            parameters += ', ';
-                            
-                        parameters += metainfo[className].methods[index].parameters[paramRank].name + ' : ' + 
-                            metainfo[className].methods[index].parameters[paramRank].paramType
-                    }
-                    
-                    result.push({
-                        "name": metainfo[className].methods[index].name + '(' + parameters + ')',
-                        "kind": 2,
-                        "location": {
-                            "uri": docIdentifier.uri,
-                            "range": {
-                                "start": {
-                                    "line": metainfo[className].methods[index].range.startpos.line,
-                                    "character": metainfo[className].methods[index].range.startpos.column
-                                },
-                                "end": {
-                                    "line": metainfo[className].methods[index].range.endpos.line,
-                                    "character": metainfo[className].methods[index].range.endpos.column
-                                }
-                            }
-                        },
-                        "containerName": className
-                    });
-                }
-                
-                for (var index = 0; index < metainfo[className].types.length; index++) {
-                    result.push({
-                        "name": metainfo[className].types[index].name,
-                        "kind": 13,
-                        "location": {
-                            "uri": docIdentifier.uri,
-                            "range": {
-                                "start": {
-                                    "line": metainfo[className].types[index].range.startpos.line,
-                                    "character": metainfo[className].types[index].range.startpos.column
-                                },
-                                "end": {
-                                    "line": metainfo[className].types[index].range.endpos.line,
-                                    "character": metainfo[className].types[index].range.endpos.column
-                                }
-                            }
-                        },
-                        "containerName": className
-                    });
-                }
-                
-                return result;
+            .then((meta : tMetaInfo) => {
+                return getMetaInfoFor(className, docIdentifier.uri);
             });
+        } else {
+            return getMetaInfoFor(className, docIdentifier.uri);
         }
     }
 );
@@ -780,6 +787,178 @@ connection.onReferences((ReferenceParams) : Location[] => {
     // }
     // Where used API
     return null;
+});
+
+connection.onSignatureHelp((docPosition : TextDocumentPosition) : Thenable<SignatureHelp> | SignatureHelp => {
+        
+    // export interface ParameterInformation {
+    //     /**
+    //      * The label of this signature. Will be shown in
+    //      * the UI.
+    //      */
+    //     label: string;
+    //     /**
+    //      * The human-readable doc-comment of this signature. Will be shown
+    //      * in the UI but can be omitted.
+    //      */
+    //     documentation?: string;
+    // }
+
+    // /**
+    //  * Represents the signature of something callable. A signature
+    //  * can have a label, like a function-name, a doc-comment, and
+    //  * a set of parameters.
+    //  */
+    // export interface SignatureInformation {
+    //     /**
+    //      * The label of this signature. Will be shown in
+    //      * the UI.
+    //      */
+    //     label: string;
+    //     /**
+    //      * The human-readable doc-comment of this signature. Will be shown
+    //      * in the UI but can be omitted.
+    //      */
+    //     documentation?: string;
+    //     /**
+    //      * The parameters of this signature.
+    //      */
+    //     parameters?: ParameterInformation[];
+    // }
+
+    // /**
+    //  * Signature help represents the signature of something
+    //  * callable. There can be multiple signature but only one
+    //  * active and only one active parameter.
+    //  */
+    // export interface SignatureHelp {
+    //     /**
+    //      * One or more signatures.
+    //      */
+    //     signatures: SignatureInformation[];
+    //     /**
+    //      * The active signature.
+    //      */
+    //     activeSignature?: number;
+    //     /**
+    //      * The active parameter of the active signature.
+    //      */
+    //     activeParameter?: number;
+    // }    
+        
+        
+    // export interface ParameterInformation {
+    //     label: string;
+    //     documentation?: string;
+    // }
+    
+    // export interface SignatureInformation {
+    //     label: string;
+    //     documentation?: string;
+    //     parameters?: ParameterInformation[];
+    // }
+    
+    // export interface SignatureHelp {
+    //     signatures: SignatureInformation[];
+    //     activeSignature?: number;
+    //     activeParameter?: number;
+    // }
+    
+    let moduleName : string = docPosition.uri.substring(
+            docPosition.uri.lastIndexOf('/') + 1, docPosition.uri.lastIndexOf('.') );
+    var lines = documents.get(docPosition.uri).getText().split(/\r?\n/g);
+    var position = docPosition.position;
+    var line = lines[docPosition.position.line];
+
+    
+    var body = {
+        implem: {
+            name: moduleName,
+            ancestor: "",
+            content: documents.get(docPosition.uri).getText()
+        },
+        lineInfo: {
+            lineContent: line,
+            lineNumber: position.line,
+            columnNumber: position.character
+        }
+    };
+    
+    let signatureReq = rp({
+        method: 'POST',
+        uri: url + '/api/rest/classOrModule/' + moduleName + '/signaturehelp/',
+        body: body,
+        json: true });
+        
+    interface signatureHelpResult {
+        "methods": [
+            {
+            "name": string,
+            "parameters": [
+                {
+                "name": string,
+                "documentation": string,
+                "paramType": string,
+                "declaration": string
+                }
+            ],
+            "returnType": string,
+            "documentation": string,
+            "declaration": string,
+            "range": {
+                "startpos": {
+                "line": number,
+                "column": number
+                },
+                "endpos": {
+                "line": number,
+                "column": number
+                }
+            }
+            }
+        ],
+        "activeMethod": number,
+        "activeParam": number
+    }
+        
+    return signatureReq
+        .then((response : signatureHelpResult) : SignatureHelp => {
+            let result : SignatureHelp = {
+                signatures: [],
+                activeSignature: 0,
+                activeParameter: 0
+            };
+            
+            result.activeSignature = response.activeMethod;
+            result.activeParameter = response.activeParam;
+            
+            for (var methIndex = 0; methIndex < response.methods.length; methIndex++) {
+                
+                let method : SignatureInformation = {
+                    label: "",
+                    documentation: "",
+                    parameters: []
+                };
+                method.documentation = response.methods[methIndex].documentation;
+                method.label = response.methods[methIndex].declaration;
+                
+                for (var paramIndex = 0; paramIndex < response.methods[methIndex].parameters.length; paramIndex++) {
+                    let param : ParameterInformation = {
+                        label: "",
+                        documentation: ""
+                    };
+                    
+                    param.documentation = response.methods[methIndex].parameters[paramIndex].documentation;
+                    param.label = response.methods[methIndex].parameters[paramIndex].declaration;
+                    
+                    method.parameters.push(param);
+                }
+                
+                result.signatures.push(method);
+            }
+            
+            return result;
+        });
 });
 
 // Listen on the connection
