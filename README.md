@@ -48,13 +48,12 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 - [x] Improve usability : retrieve metainfo on open
 - [x] Improve outline and symbols APIs : use ProduceGold
 
-## Alpha 0.2.1 - *Deliver on May 4, 2016* [![May the 4th](https://cdn0.iconfinder.com/data/icons/star-wars/48/x-wing-512.png =70)](http://www.google.fr/search?q=may+the+4th)    
+## Alpha 0.2.1 - *Deliver on May 4, 2016* [<img src="https://cdn0.iconfinder.com/data/icons/star-wars/48/x-wing-512.png" width="70"/>](http://www.google.fr/search?q=may+the+4th)
 
 - [x] APIs: make work parse (without save) + save
 - [x] Parse on open
 - [x] Parse (F7) should be only a parse, no save
 - [x] Native save (ctrl+s) : saves the module
-
 - [x] Signature completion - regis
 
 ## Alpha 0.2.2 - *Deliver on May 13, 2016*
@@ -63,11 +62,9 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 - [ ] Add "myText" in documentation for the outlines
 - [ ] Find references (Where used) - regis
 - [ ] API: saves the module (ctrl+s) **even if inconsistent**
-
 - [ ] Bug fixes
     - [ ] Crash of eWam Service when using vscode
     - [ ] Outline becomes unavailable at some point (onHover not called anymore)
-    
 - [ ] Enable comments (i.e. CommentRule)
 - [ ] Go to Definition on local variables
 
