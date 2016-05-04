@@ -1,0 +1,148 @@
+%YAML 1.2
+---
+name: Gold
+file_extentions: [gold, god]
+scope: source.gold
+
+contexts:
+  main:
+    - match: '"'
+      push: double_quoted_string
+
+    - match: (')
+      push: single_quoted_string
+
+    - match: (;)
+      push: line_comment
+
+    - match: \b(_MethodName|_ModuleName|_move|absolute|allVersionsOf|and|bAnd|begin|bNot|bOr|bXor|concat|const|continue|descending|dispose|distinct|exit|first|from|Group|by|in|inherited|instanceOf|inOut|inverse|last|length|like|member|memory|MetaModelEntity|new|not|num|of|fetch|select|OQLClassId|OQLCount|OQLMax|OQLMin|OQLSum|OqlUpdateDate|OqlUpdateTime|or|ord|order|by|out|pass|PhantomsToo|pred|Scenario|sizeof|step|string|succ|throw|Upcase|uses|using|versioned|when|reimplem|where|Write|WriteLn|xor|into|Sql|at|Sql|packed|anycase|dynamic|rem|global|remote|multiLang)\b
+      scope: keyword.other.gold
+
+    - match: \b(if|then|elseIf|else|endIf|while|endWhile|for|to|downTo|forEach|endFor|repeat|until|loop|endLoop|break|return|try|catch|when|endWhen|finally|endTry|switch|endSwitch)\b
+      scope: keyword.control.gold
+
+    - include: types
+
+    - match: (true|True|false|False|nil|Nil)
+      scope: constant.language.gold
+
+    - match: (self|Self|_Result)
+      scope: constant.language.gold
+
+    - match: ^(class|module)\b
+      scope: storage.type.gold
+      push: structure_declaration
+
+    - match: ^(function|procedure)
+      scope: storage.type.gold
+      push: method_declaration
+
+    - match: ^(endClass|endModule|endFunc|endProc|endRecord|end|endNativeRecord)\b
+      scope: storage.type.end.gold
+
+    - match: ^(type)\b
+      scope: storage.type.gold
+      push: type_declaration
+
+    - match: ^[ \t]*(var )
+      captures:
+        1: storage.type.gold
+      push: local_variable_declaration
+
+    - match: ^([A-Za-z_][A-Za-z0-9_]*)[ \t]*(:)[ \t]*(refTo|listOf|reimplem){0,1}[ \t]*
+      captures: 
+        3: keyword.other.gold
+      push: member_variable_declaration
+
+    - match: \b(-){0,1}([0-9]+[.][0-9]+)\b|\b([0-9]+)\b
+      scope: constant.numeric.gold
+
+    - match: '\b[#][0-9]{3}\b'
+      scope: constant.character.gold
+
+    - match: '=|+|-|*|/mod|\.'
+      scope: keyword.operator.gold
+
+  structure_declaration:
+    - meta_scope: meta.structure.gold
+    - match: \b(public|private|protected|final|override|forward|external|memory|reimplem|return)\b
+      scope: keyword.modifier.gold
+    - include: types
+    - include: strings
+    - match: $
+      pop: true
+
+  method_declaration:
+    - meta_scope: meta.function.gold
+    - match: \b(public|private|protected|final|override|forward|external|memory|reimplem|return)\b
+      scope: keyword.modifier.gold
+    - include: types
+    - include: strings
+    - match: ([A-Za-z_][A-Za-z0-9_]*)
+      scope: identifier.gold
+    - match: (\()
+      push: method_parameter_list
+    - match: (return)
+      scope: keyword.other.gold
+    - match: $
+      pop: true
+
+  method_parameter_list:
+    - meta_scope: meta.function.parameters.gold
+    - include: types
+    - include: strings
+    - match: (,|:)
+      scope: keyword.operator.gold
+    - match: (\))
+      pop: true
+
+  local_variable_declaration:
+    - meta_scope: meta.variable.local.gold
+    - include: types
+    - match: $
+      pop: true
+
+  member_variable_declaration:
+    - meta_scope: meta.variable.member.gold
+    - include: types
+    - match: $
+      pop: true
+
+  double_quoted_string:
+    - meta_scope: string.quoted.double.gold
+    - match: '[#][0-9]{3}'
+      scope: constant.character
+    - match: '"'
+      pop: true
+
+  single_quoted_string:
+    - meta_scope: string.quoted.single.gold
+    - match: '[#][0-9]{3}'
+      scope: constant.character
+    - match: "'"
+      pop: true
+
+  line_comment:
+    - meta_scope: comment.line.gold
+    - match: "$"
+      pop: true
+
+  type_declaration:
+    - meta_scope: meta.type.gold
+    - match: (record|nativeRecord)
+      scope: storage.type.gold
+    - include: types
+    - match: $
+      pop: true
+
+  types:
+    - match: \b(Int1|Int2|Int4|Int8|Num8|Text|Pointer|CString|Decimal|Boolean|int|char|array|chr)\b
+      scope: storage.type.gold
+    - match: \bnum\([0-9]+\)
+      scope: storage.type.gold
+
+  strings:
+    - match: '"'
+      push: double_quoted_string
+    - match: (')
+      push: single_quoted_string

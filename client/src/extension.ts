@@ -26,6 +26,8 @@ var config: vscode.WorkspaceConfiguration;
      
 let languageClient : LanguageClient;
 
+let saving : boolean = false;
+
 
 function setDecoForStopPoints(methods) {
 
@@ -160,6 +162,24 @@ function parse(notifyNewSource: Boolean = false, doc? : vscode.TextDocument) {
     
     languageClient.sendRequest(
         { method: "parse" },
+        {
+            "classname": getOpenClassName(doc),
+            "source": doc.getText(),
+            "notifyNewSource" : notifyNewSource,
+            "textDocument": doc
+        } 
+    );
+}
+
+function save(notifyNewSource: Boolean = false, doc? : vscode.TextDocument) {
+    
+    if (!doc) {
+        doc  = vscode.window.activeTextEditor.document;
+    }
+    
+    saving = true;
+    languageClient.sendRequest(
+        { method: "save" },
         {
             "classname": getOpenClassName(doc),
             "source": doc.getText(),
@@ -444,6 +464,38 @@ export function activate(context: vscode.ExtensionContext) {
         );
     } );
     
+    languageClient.onRequest({method: "onSaveSuccessful"}, (params: {newSource: string, docUri: vscode.Uri} ) => {
+        var editor: vscode.TextEditor = null;
+        
+        // Look for the editor we parsed
+        for (var index = 0; index < vscode.window.visibleTextEditors.length; index++) {
+            if (JSON.stringify(vscode.window.visibleTextEditors[index].document.uri) === 
+                    JSON.stringify(params.docUri))
+            {
+                editor = vscode.window.visibleTextEditors[index];
+                break;
+            }
+        }
+        
+        if (editor == null)
+            return;
+        
+        editor.edit(
+            editBuilder => {
+                var start: vscode.Position = new vscode.Position(0, 0);
+                var lastLine: number = editor.document.lineCount - 1;
+                
+                var end: vscode.Position = editor.document.lineAt(lastLine).range.end;
+                var range: vscode.Range = new vscode.Range(start, end);
+                
+                editBuilder.replace(range, params.newSource);
+                refreshUI();
+                parseBarItem.color = 'white';
+            }
+        ).then((value : boolean) => {
+            editor.document.save();
+        });
+    } );
     
     // Push the disposable to the context's subscriptions so that the 
     // client can be deactivated on extension deactivation
@@ -576,15 +628,17 @@ export function activate(context: vscode.ExtensionContext) {
         }
     );
     
-    // vscode.workspace.onDidSaveTextDocument(
-        // (event : vscode.TextDocumentChangeEvent) => {
-        //     // console.log('opened document');
-        //     if (event.document.languageId == "gold") {
-        //         // console.log('... a Gold document !');
-        //         parse(false, event.document);
-        //     }
-        // }
-    // );
+    vscode.workspace.onDidSaveTextDocument( 
+        (document : vscode.TextDocument) => {
+            // console.log('opened document');
+            if (document.languageId == "gold" && saving == false) {
+                // console.log('... a Gold document !');
+                save(true, document);
+            } else {
+                saving  = false;
+            }
+        }
+    );
     
     vscode.workspace.onDidOpenTextDocument(
         (document : vscode.TextDocument) => {

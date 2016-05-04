@@ -1,0 +1,91 @@
+# [PackageDev] target_format: plist, ext: tmLanguage
+---
+name: Gold
+scopeName: source.gold
+fileTypes: ['gold', 'god']
+uuid: 63661b9d-cf52-4bbe-b3e2-251d5072cf91
+
+# for VSCode {
+foldingStartMarker: (function)|(procedure)
+foldingStopMarker: (endFunc)|(endProc)
+# }
+
+patterns:
+- comment: Comments
+  name: comment.line.character
+  match: '[;].*'
+
+- comment: Numeric constants
+  name: constant.numeric
+  match: '[0-9]+[.]{0-1}[0-9]*'
+
+- comment: Character constants
+  name: constant.character
+  match: '[#][0-9]{3}'
+
+- comment: Language constants
+  name: constant.language
+  match: '(true|True|false|False|nil|Nil)'
+
+- comment: Language constants
+  name: variable.language
+  match: '(self|Self|_Result)'
+
+- comment: General keywords
+  name: keyword.other
+  match: '\b(_MethodName|_ModuleName|_move|absolute|allVersionsOf|and|array|bAnd|begin|bNot|bOr|bXor|char|chr|concat|const|continue|CString|Decimal|descending|dispose|distinct|exit|first|from|Group|by|in|inherited|instanceOf|inOut|int|inverse|last|length|like|listOf|member|memory|MetaModelEntity|new|nil|not|num|of|fetch|select|OQLClassId|OQLCount|OQLMax|OQLMin|OQLSum|OqlUpdateDate|OqlUpdateTime|or|ord|order|by|out|pass|PhantomsToo|pred|refTo|reimplem|return|Scenario|sizeof|step|string|succ|throw|type|Upcase|uses|using|var|versioned|when|where|Write|WriteLn|xor|into|Sql|at|Sql|packed|anycase|dynamic|rem|global|remote|multiLang)\b'
+
+- comment: Structural keywords
+  name: keyword.structure
+  match: '\b(class|endClass|module|endModule|function|endFunc|procedure|endProc|nativeRecord|record|endRecord|end)\b'
+
+- comment: Flow control keywords
+  name: keyword.control
+  match: '\b(if|then|elseIf|else|endIf|while|endWhile|for|to|downTo|forEach|endFor|repeat|until|loop|endLoop|break|try|catch|when|endWhen|finally|endTry|switch|endSwitch)\b'
+
+- comment: Entity declaration
+  name: storage.type
+  match: '(class|module|function|procedure|nativeRecord|record)'
+
+- comment: Modifiers keywords
+  name: storage.modifier
+  match: '\b(public|private|protected|final|override|forward|external|memory)\b'
+
+- comment: Strings in ""
+  name: string.quoted.double
+  begin: '"'
+  end: '"'
+  patterns:
+  - name: constant.character
+    match: = '[#][0-9]{3}'
+
+- comment: Strings in ''
+  name: string.quoted.simple
+  begin: \'
+  end: \'
+  patterns:
+  - name: constant.character
+    match: '[#][0-9]{3}'
+
+# - comment: Function definition
+#   name: entity.other
+#   begin: '(function)\b([a-zA-Z][a-zA-Z0-9]*)\b(\(.*\))?\b(return)\b([a-zA-Z][a-zA-Z0-9]*)'
+#   end: '(endFunc)'
+#   beginCaptures:
+#     '2': {name: entity.name.function}
+
+# - comment: Procedure definition
+#   name: entity.other
+#   begin: '(procedure)\b([a-zA-Z][a-zA-Z0-9]*)\b(\(.*\))?'
+#   end: '(endProc)'
+#   beginCaptures:
+#     '2': {name: entity.name.function}
+
+- comment: Procedure definition
+  name: meta.function.gold
+  match: '(procedure)'
+
+- comment: Function definition
+  name: meta.function.gold
+  match: '(function)'
+...
