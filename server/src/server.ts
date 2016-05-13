@@ -11,11 +11,11 @@ import {
     InitializeParams, InitializeResult, TextDocumentIdentifier, TextDocumentPosition,
     CompletionItem, CompletionItemKind, CompletionList, Hover, CodeActionParams, Command,
     SymbolInformation, ReferenceParams, Position, SignatureHelp, ParameterInformation, 
-    SignatureInformation
+    SignatureInformation, Range, RenameParams
 } from 'vscode-languageserver';
 
-import { TextDocument, Definition, Location } from 'vscode';
-
+import { Definition, TextDocument, Location } from 'vscode';
+// import * as vscode from 'vscode';
 import * as rp from 'request-promise';
 import * as fs from 'fs';
 
@@ -43,11 +43,11 @@ connection.onInitialize(
                 // Tell the client that the server support code complete
                 completionProvider: {
                     resolveProvider: true,
-                    triggerCharacters: [ "."/*, "(", ","*/ ]
+                     triggerCharacters: [ ".", "(", "," ]
                 },
                 hoverProvider: true,
                 documentSymbolProvider : true,
-                signatureHelpProvider : { triggerCharacters : [ "(", "," ] },
+                signatureHelpProvider : { triggerCharacters : [ "(", ",", "." ] },
                 definitionProvider : true,
                 referencesProvider : true
             }
@@ -210,6 +210,7 @@ interface tOutlineRange {
 interface tOutline {
     range: tOutlineRange,
     annotation : string,
+    produceGold : string,
     documentation : string,
     name : string,
     kind : number,
@@ -260,11 +261,12 @@ interface tConstant {
 }
 
 interface tEntity {
-    Name : string
+    label : string
 }
 
 interface tMetaInfo {
    moduleName : string,
+   documentation : string,
    variables : tVariable[],
    methods : tMethod[],
    constants : tConstant[],
@@ -275,10 +277,76 @@ interface tMetaInfo {
    outlines : tOutline[]
 }
 
+interface tWhereUsed {
+    name: string,
+    ownerName: string,
+    theType: string,
+    location: string,
+    description: string
+}
+
 
 let outlines : tOutline[];
 let metainfo : tMetaInfo[];
-let repositoryPath : string;
+let ewamPath : string;
+let workPath : string; 
+
+function createDocFileFor(className) : Thenable<string> {
+    
+    return connection.sendRequest({ method: "getRootPath" })
+    .then( (rootPath : string) => {
+        
+        let fileName : string =  rootPath.replace(/\\/g, '/') + '/' + className + '.html';
+        let content : string = '';
+        content += '<html>\n';
+        content += '  <head><title>' + className + ' documentation</title></head>\n';
+        content += '  <body>\n';
+        content += '    <blockquote>';
+        content += '      <h1>' + className + ' summary</h1>\n';
+        content += '      <p>' + metainfo[className].documentation.replace(/\n/g, "<br/>") + '      </p>\n';
+        content += '      <h1>' + className + ' parents</h1>\n';
+        
+        let indent : string = '';
+        
+        for (var index = metainfo[className].parents.length - 1; index >=0 ; index--) {
+            content += indent + '<a href="file:///' + rootPath + '/'+ 
+                metainfo[className].parents[index].label + '.gold">' +
+                metainfo[className].parents[index].label + '</a><br/>\n';
+                
+            indent += '&nbsp;&nbsp;&nbsp;';
+        }
+        
+        content += '      <h1>' + className + ' descendants</h1>\n';
+        indent = '';
+        
+        for (var index = 0; index < metainfo[className].childs.length; index++) {
+            content += indent + '<a href="file:///' + rootPath + '/'+ 
+                metainfo[className].childs[index].label + '.gold">' +
+                metainfo[className].childs[index].label + '</a><br/>\n';
+                
+            indent += '&nbsp;&nbsp;&nbsp;';
+        }
+        
+        content += '      <h1>' + className + ' sisters</h1>\n';
+        content += '      <ul>\n';
+        indent = '';
+        
+        for (var index = 0; index <  metainfo[className].sisters.length; index++) {
+            content += '        <li><a href="file:///' + rootPath + '/'+ 
+                metainfo[className].sisters[index].label + '.gold">' +
+                metainfo[className].sisters[index].label + '</a></li>\n';
+        }
+        
+        content += '      </ul>\n';
+
+        content += '    </blockquote>';
+        content += '  </body>\n';
+        content += '</html>\n';
+        
+        fs.writeFile(fileName, content);
+        return fileName;
+    });
+}
 
 function updateOutlinesForClass(classname : string, source : string) : void {
     
@@ -317,7 +385,7 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
     });
     
     _rp.then( (response) => {
-        repositoryPath = response._Result;
+        ewamPath = response._Result;
     });
     
     var _rp = rp(
@@ -333,31 +401,45 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
     });
     
     metainfo[classname] = {};
-    return _rp.then( (response) => {
+    return _rp
+    .then( (response) => {
             if (metainfo == undefined) {
                 metainfo = [];
             }
             metainfo[classname] = response;
-            return metainfo[classname];
-        })
-        .catch( (response) => {
-            delete metainfo[classname];
-            connection.console.log('Error while updating meta-information. \n' + response);
-        });       
+            return createDocFileFor(classname)
+    .then( (result : string) => {
+        connection.console.log('Successfully updated meta-information. \n' + response);
+        return metainfo[classname];
+    })
+    })
+    .catch( (response) => {
+        delete metainfo[classname];
+        connection.console.log('Error while updating meta-information. \n' + response);
+    });       
 }
 
 function getOutlineAt(position : Position, modulename : string) : tOutline {
+    let result : tOutline = null;
+    
     for (var index = 0; index < metainfo[modulename].outlines.length; index++) {
-        if (position.line >= metainfo[modulename].outlines[index].range.startpos.line &&
-            position.line <= metainfo[modulename].outlines[index].range.endpos.line && 
-            position.character >= metainfo[modulename].outlines[index].range.startpos.column &&
-            position.character <= metainfo[modulename].outlines[index].range.endpos.column)
-        {
-            return metainfo[modulename].outlines[index];
-        }
+        
+        if (position.line < metainfo[modulename].outlines[index].range.startpos.line || 
+            position.line > metainfo[modulename].outlines[index].range.endpos.line)
+            continue;
+            
+        if (position.line == metainfo[modulename].outlines[index].range.startpos.line && 
+            position.character < metainfo[modulename].outlines[index].range.startpos.column)
+            continue;
+            
+        if (position.line == metainfo[modulename].outlines[index].range.endpos.line && 
+            position.character > metainfo[modulename].outlines[index].range.endpos.column)
+            continue;
+            
+        result = metainfo[modulename].outlines[index];
     }
     
-    return null;
+    return result;
 }
 
 connection.onHover((textDocumentPosition: TextDocumentPosition) : Thenable<Hover> | Hover => {
@@ -683,6 +765,10 @@ function FindDefinition(identifier : string, ownerName : string) : Thenable<tRan
     );
 }
 
+connection.onRenameRequest( (RenameParams) => { return null;} );
+
+connection.onCodeAction( (params : CodeActionParams) : Command[] => {return null;});
+
 connection.onDefinition((position : TextDocumentPosition) : Definition | Thenable<Definition> => 
 {
     // export declare type Definition = Location | Location[];
@@ -696,10 +782,10 @@ connection.onDefinition((position : TextDocumentPosition) : Definition | Thenabl
     
     let outline : tOutline = getOutlineAt(position.position, moduleName);
 
-    let repoReq = rp({
-        method: 'GET',
-        uri: url + '/api/rest/repository/path', 
-        json: true });
+    // let repoReq = rp({
+    //     method: 'GET',
+    //     uri: url + '/api/rest/repository/path', 
+    //     json: true });
         
     // outline.entity is defined in a class or module
     // Get definition position inside the owner
@@ -715,17 +801,21 @@ connection.onDefinition((position : TextDocumentPosition) : Definition | Thenabl
             uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName,
             json: true });
             
-        return repoReq
-        .then((repoPath) => {
+        // return repoReq
+        // .then((repoPath) => {
+
+        return connection.sendRequest({ method: "getRootPath" })
+        .then( (rootPath : string) => {
+            let repoPath = rootPath.replace(/\\/g, '/');
             return definitionReq
         .then((defRange : tRange) => {
             // Retrive the owner content
             return contentReq
         .then((response) => {
-            fs.writeFile(repoPath["_Result"] + "/" + outline.entity.ownerName + ".gold", response["content"]);
+            fs.writeFile(repoPath + "/" + outline.entity.ownerName + ".gold", response["content"]);
             
             return {
-                uri: "file:///" + repoPath["_Result"] + "/" + outline.entity.ownerName + ".gold",
+                uri: "file:///" + repoPath + "/" + outline.entity.ownerName + ".gold",
                 range : {
                     "start": {
                         "line": defRange.startpos.line,
@@ -751,15 +841,19 @@ connection.onDefinition((position : TextDocumentPosition) : Definition | Thenabl
             uri: url + '/api/rest/classOrModule/' + outline.name,
             json: true });
             
-        return repoReq
-        .then((repoPath) => {
+        // return repoReq
+        // .then((repoPath) => {
+            
+        return connection.sendRequest({ method: "getRootPath" })
+        .then( (rootPath : string) => {
+            let repoPath = rootPath.replace(/\\/g, '/');
             // Retrive the owner content
             return contentReq
         .then((response) => { 
-            fs.writeFile(repoPath["_Result"] + "/" + outline.name + ".gold", response["content"]);
+            fs.writeFile(repoPath + "/" + outline.name + ".gold", response["content"]);
             
             return {
-                uri: "file:///" + repoPath["_Result"] + "/" + outline.name + ".gold",
+                uri: "file:///" + repoPath + "/" + outline.name + ".gold",
                 range : {
                     "start": {
                         "line": 0,
@@ -773,20 +867,75 @@ connection.onDefinition((position : TextDocumentPosition) : Definition | Thenabl
             };
         });
         });
-
-    
     }
-    
-    
 });
 
-connection.onReferences((ReferenceParams) : Location[] => {
+connection.onReferences((param : ReferenceParams) : Location[] | Thenable<Location[]> => {
+    
     // export interface Location {
     //     uri: string;
     //     range: Range;
     // }
+    
+    // export interface TextDocumentIdentifier {
+    //     uri: string;
+    //     languageId: string;
+    // }
+    // export interface TextDocumentPosition extends TextDocumentIdentifier {
+    //     position: Position;
+    // }
+    // export interface ReferenceContext {
+    //     includeDeclaration: boolean;
+    // }
+    // export interface ReferenceParams extends TextDocumentPosition {
+    //     context: ReferenceContext;
+    // }
+    
+    
     // Where used API
-    return null;
+    
+    var moduleName = param.uri.substring(
+        param.uri.lastIndexOf('/') + 1, param.uri.lastIndexOf('.')
+    );
+    
+    let metaClass = metainfo[moduleName];
+    
+    let outline : tOutline = getOutlineAt(param.position, moduleName);
+
+    let whereUsedReq = rp({
+    method: 'GET',
+    uri: url + '/api/rest/entity/' + outline.entity.ownerName + '/' + outline.entity.label + '/WhereUsed',
+    json: true });
+    
+    
+    return connection.sendRequest({ method: "getRootPath" })
+    .then( (rootPath : string) => {
+        let fileName : string =  rootPath.replace(/\\/g, '/') + '/' + moduleName + '.gold';
+        
+        return whereUsedReq
+        .then( (whereUsedResult : tWhereUsed[]) : Location[] => {
+            let result : Location[] = [];
+
+            for(let index = 0; index < whereUsedResult.length; index++) {;
+                result.push({
+                    "uri": 'file:///' + rootPath + '/' + whereUsedResult[index].name + '.gold',
+                    "range": { 
+                        "start": {
+                            "line": 0,
+                            "character": 0
+                        },
+                        "end": {
+                            "line": 1,
+                            "character": 0
+                        }
+                    }
+                });
+            }
+            
+            return result;
+        });
+    });
+    
 });
 
 connection.onSignatureHelp((docPosition : TextDocumentPosition) : Thenable<SignatureHelp> | SignatureHelp => {
@@ -891,30 +1040,31 @@ connection.onSignatureHelp((docPosition : TextDocumentPosition) : Thenable<Signa
         json: true });
         
     interface signatureHelpResult {
-        "methods": [
+        "methods": 
+        [
             {
-            "name": string,
-            "parameters": [
-                {
                 "name": string,
+                "parameters": [
+                    {
+                    "name": string,
+                    "documentation": string,
+                    "paramType": string,
+                    "declaration": string
+                    }
+                ],
+                "returnType": string,
                 "documentation": string,
-                "paramType": string,
-                "declaration": string
+                "declaration": string,
+                "range": {
+                    "startpos": {
+                    "line": number,
+                    "column": number
+                    },
+                    "endpos": {
+                    "line": number,
+                    "column": number
+                    }
                 }
-            ],
-            "returnType": string,
-            "documentation": string,
-            "declaration": string,
-            "range": {
-                "startpos": {
-                "line": number,
-                "column": number
-                },
-                "endpos": {
-                "line": number,
-                "column": number
-                }
-            }
             }
         ],
         "activeMethod": number,

@@ -93,6 +93,17 @@
                 "command": "ewam.run",
                 "key": "F5",
                 "mac": "F5"
+            },
+            {
+                "command": "ewam.classTree",
+                "key": "alt+t",
+                "mac": "alt+t"
+            },
+            {
+                "command": "ewam.previewDoc",
+                "key": "alt+t",
+                "mac": "alt+t",
+                "when": "editorTextFocus"
             }
         ],
         "commands": [
@@ -135,6 +146,14 @@
             {
                 "command": "ewam.run",
                 "title": "eWam Run Application"
+            },
+            {
+                "command": "ewam.classTree",
+                "title": "eWam Show Class Tree"
+            },
+            {
+                "command": "ewam.previewDoc",
+                "title": "eWam Show Documentation"
             }
         ],
         "languages": [
@@ -205,11 +224,10 @@
 	},
 	"devDependencies": {
 		"typescript": "^1.8.9",
-		"vscode": "^0.11.0"
+		"vscode": "^0.11.12"
 	},
 	"dependencies": {
 		"vscode-languageclient": "^1.4.2",
-        "axios": "^0.9.1",
-        "sync-request": "^3.0.1"
+        "axios": "^0.9.1"
     }
 }

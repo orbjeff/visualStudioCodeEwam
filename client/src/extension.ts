@@ -17,6 +17,7 @@ var checkInBarItem: vscode.StatusBarItem;
 var checkOutBarItem: vscode.StatusBarItem;
 var reimplemBarItem: vscode.StatusBarItem;
 var parseBarItem: vscode.StatusBarItem;
+var classtreeBarItemMain: vscode.StatusBarItem;
 var parsingErrorDecorationType: vscode.TextEditorDecorationType;
 var breakPointDecorationType: vscode.TextEditorDecorationType;
 var config: vscode.WorkspaceConfiguration;
@@ -187,6 +188,40 @@ function save(notifyNewSource: Boolean = false, doc? : vscode.TextDocument) {
             "textDocument": doc
         } 
     );
+}
+
+function classTree() {
+    
+    // let signatureReq = rp({
+    //     method: 'POST',
+    //     uri: url + '/api/rest/classOrModule/' + moduleName + '/signaturehelp/',
+    //     body: body,
+    //     json: true });
+    
+    if (!vscode.workspace.rootPath) {
+        vscode.window.showErrorMessage("eWam Class Tree: Cannot work without opened folder");
+        return;
+    }
+
+    axios.post(config.get('url') + '/api/rest/classTree')
+        .then(function(response) {
+            console.log(response);
+        })
+        .catch(function(response) {
+            console.log(response);
+        });
+    
+}
+
+function classDocumentation (moduleName : string) {
+    // let uri = vscode.Uri.parse(config.get('url') + 
+    //     '/api/rest/classOrModule/' + moduleName + '/htmlDocumentation/');
+    
+    // vscode.workspace.rootPath
+    
+    let uri = vscode.Uri.parse('file:///' + vscode.workspace.rootPath + '/' + moduleName + '.html');
+    let success = vscode.commands.executeCommand('vscode.previewHtml', uri, vscode.ViewColumn.Two);
+    
 }
 
 // function setDeco(errors) {
@@ -431,8 +466,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Create the language client and start the client.
     languageClient = new LanguageClient('Ewam VSServer', serverOptions, clientOptions);
     
-    let disposable = languageClient.start();
-    
+
     languageClient.onRequest({method: "onParseSuccessful"}, (params: {newSource: string, docUri: vscode.Uri} ) => {
         var editor: vscode.TextEditor = null;
         
@@ -497,10 +531,15 @@ export function activate(context: vscode.ExtensionContext) {
         });
     } );
     
+    languageClient.onRequest({method: "getRootPath"}, (params : any) : string => {
+        return vscode.workspace.rootPath;
+    } );
+    
+    let disposable = languageClient.start();
+    
     // Push the disposable to the context's subscriptions so that the 
     // client can be deactivated on extension deactivation
     context.subscriptions.push(disposable);
-    
 
     var pathIcon = context.asAbsolutePath('images\\dot.png');
     parsingErrorDecorationType = vscode.window.createTextEditorDecorationType({
@@ -563,7 +602,20 @@ export function activate(context: vscode.ExtensionContext) {
         run();
     });
     context.subscriptions.push(disposable);
-
+    disposable = vscode.commands.registerCommand('ewam.classTree', function() {
+        classTree();
+    });
+    context.subscriptions.push(disposable);
+    disposable = vscode.commands.registerCommand('ewam.previewDoc', function() {
+        let docPath = vscode.window.activeTextEditor.document.uri.path;
+        var className = docPath.substring(
+            docPath.lastIndexOf('/') + 1, docPath.lastIndexOf('.')
+        );
+        
+        classDocumentation(className);
+    });
+    context.subscriptions.push(disposable);
+    
 
 
     parseBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
@@ -572,6 +624,12 @@ export function activate(context: vscode.ExtensionContext) {
     parseBarItem.command = 'ewam.parse';
     parseBarItem.show();
 
+    classtreeBarItemMain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+    classtreeBarItemMain.text = '$(clippy) Class Tree'
+    classtreeBarItemMain.tooltip = 'Show Class Tree';
+    classtreeBarItemMain.command = 'ewam.classTree';
+    classtreeBarItemMain.show();
+    
     var statusBarItemMain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     statusBarItemMain.text = '$(inbox) Open'
     statusBarItemMain.tooltip = 'Open entity';
@@ -642,7 +700,7 @@ export function activate(context: vscode.ExtensionContext) {
     
     vscode.workspace.onDidOpenTextDocument(
         (document : vscode.TextDocument) => {
-            // console.log('opened document');
+            console.log('opened document ' + document.fileName + '\n');
             if (document.languageId == "gold") {
                 // console.log('... a Gold document !');
                 parse(false, document);
@@ -650,8 +708,18 @@ export function activate(context: vscode.ExtensionContext) {
         }
     );
     
-    // vscode.workspace.
-
+    vscode.window.onDidChangeActiveTextEditor( 
+        (editor : vscode.TextEditor) => {
+            console.log('focus on document ' + editor.document.fileName + '\n');
+            if (editor.document.languageId == "gold") {
+                // console.log('... a Gold document !');
+                parse(false, editor.document);
+            }
+        }
+    );
+    
+    vscode.languages.setLanguageConfiguration("gold", {"comments": { "lineComment": ";" } } );
+    
     // vscode.workspace.onDidSaveTextDocument((doc : vscode.TextDocument) => {
     //         if (doc.languageId == "gold") {
     //             // Where do I get the current diagnostics ?

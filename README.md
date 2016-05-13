@@ -54,18 +54,32 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 - [x] Parse on open
 - [x] Parse (F7) should be only a parse, no save
 - [x] Native save (ctrl+s) : saves the module
-- [x] Signature completion - regis
+- [x] Signature completion
 
 ## Alpha 0.2.2 - *Deliver on May 13, 2016*
 
-- [ ] Class tree visualization : explore possibilities offered by virtual documents (investigate how to implement the previewHtml, cf. https://code.visualstudio.com/updates/vJanuary#_extension-authoring, or Code Flower extension http://www.redotheweb.com/CodeFlower/, https://bitbucket.org/wynsure/code-flower-and-dependency-wheel)
-- [ ] Add "myText" in documentation for the outlines
-- [ ] Find references (Where used) - regis
+- [x] Enable comments (i.e. CommentRule)
+- [x] Add "myText" in documentation for the outlines
+- ~~[ ] Make method parameter suggestions be documented~~ : Impossible due to underlying API restrictions
+- [x] Class tree visualization : simple class tree interact
+- [x] Class documentation : explore possibilities offered by virtual documents (investigate how to implement the previewHtml, cf. https://code.visualstudio.com/updates/vJanuary#_extension-authoring, or Code Flower extension http://www.redotheweb.com/CodeFlower/, https://bitbucket.org/wynsure/code-flower-and-dependency-wheel) :
+    - unable to detect when we try to open a class (a file) from the preview links
+    - vscode.previewHtml seems buggy : if I open it, close the preview, and re-open it, a crash occurs
+- [x] Find references (Where used)
+
+## Alpha 0.2.3 - *Deliver on May 20, 2016*
+
+- [ ] Generate source code
+- [ ] Timer on parse
+- [ ] Class tree visualization : handle directly the "select from name" based on the currently open module
+- [ ] Class documentation : improve robustness
+- [ ] In Ctrl+Shift+O : add parent classes symbols ?
+     - => connection.onWorkspaceSymbol => metamodel browser request
 - [ ] API: saves the module (ctrl+s) **even if inconsistent**
 - [ ] Bug fixes
     - [ ] Crash of eWam Service when using vscode
     - [ ] Outline becomes unavailable at some point (onHover not called anymore)
-- [ ] Enable comments (i.e. CommentRule)
+    - [ ] fix item kind of suggestions
 - [ ] Go to Definition on local variables
 
 ## Testing - *Publish on 13 May 2016*
@@ -75,10 +89,10 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 ## Upcoming tasks
 
 - [ ] Parsing errors iteration 2 : code analyzer feedback 
-- [ ] Review "Code Actions" feature : could be implemented using code analyzer
 - [ ] Ergonomic way to override variables and methods
-- [ ] Additional code snippets
 - [ ] Symbol renaming
+- [ ] Additional code snippets
+- [ ] Review "Code Actions" feature : could be implemented using code analyzer
 - [ ] Additional validations (check repo is writable) - nicolas api
 - [ ] Other entity management (create new scenario, translation, ...)
 - [ ] Polish syntaxe highlightinh
