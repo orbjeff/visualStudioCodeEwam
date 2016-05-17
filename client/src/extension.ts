@@ -11,16 +11,17 @@ import * as vscode from 'vscode';
 import * as axios from 'axios';
 import * as fs from 'fs';
 
-var EXTENSION = '.gold';
-var scenarioBarItem: vscode.StatusBarItem;
-var checkInBarItem: vscode.StatusBarItem;
-var checkOutBarItem: vscode.StatusBarItem;
-var reimplemBarItem: vscode.StatusBarItem;
-var parseBarItem: vscode.StatusBarItem;
-var classtreeBarItemMain: vscode.StatusBarItem;
-var parsingErrorDecorationType: vscode.TextEditorDecorationType;
-var breakPointDecorationType: vscode.TextEditorDecorationType;
-var config: vscode.WorkspaceConfiguration;
+let EXTENSION = '.gold';
+let scenarioBarItem: vscode.StatusBarItem;
+let checkInBarItem: vscode.StatusBarItem;
+let checkOutBarItem: vscode.StatusBarItem;
+let reimplemBarItem: vscode.StatusBarItem;
+let parseBarItem: vscode.StatusBarItem;
+let classtreeBarItemMain: vscode.StatusBarItem;
+let parsingErrorDecorationType: vscode.TextEditorDecorationType;
+let breakPointDecorationType: vscode.TextEditorDecorationType;
+let config: vscode.WorkspaceConfiguration;
+let lastParse : number;
 
 // let diagnosticCollection = languages.createDiagnosticCollection("stuff");
 // let diagnostics : Diagnostic[] = [];
@@ -192,6 +193,13 @@ function save(notifyNewSource: Boolean = false, doc? : vscode.TextDocument) {
 
 function classTree() {
     
+    let editor = vscode.window.activeTextEditor;
+    let uri = editor.document.uri.path
+    
+    var moduleName = uri.substring(
+        uri.lastIndexOf('/') + 1, uri.lastIndexOf('.')
+    );
+    
     // let signatureReq = rp({
     //     method: 'POST',
     //     uri: url + '/api/rest/classOrModule/' + moduleName + '/signaturehelp/',
@@ -203,7 +211,7 @@ function classTree() {
         return;
     }
 
-    axios.post(config.get('url') + '/api/rest/classTree')
+    axios.post(config.get('url') + '/api/rest/classOrModule/' + moduleName + '/showInTree')
         .then(function(response) {
             console.log(response);
         })
@@ -221,7 +229,6 @@ function classDocumentation (moduleName : string) {
     
     let uri = vscode.Uri.parse('file:///' + vscode.workspace.rootPath + '/' + moduleName + '.html');
     let success = vscode.commands.executeCommand('vscode.previewHtml', uri, vscode.ViewColumn.Two);
-    
 }
 
 // function setDeco(errors) {
@@ -467,7 +474,8 @@ export function activate(context: vscode.ExtensionContext) {
     languageClient = new LanguageClient('Ewam VSServer', serverOptions, clientOptions);
     
 
-    languageClient.onRequest({method: "onParseSuccessful"}, (params: {newSource: string, docUri: vscode.Uri} ) => {
+    languageClient.onRequest(
+        {method: "onParseSuccessful"}, (params: {newSource: string, docUri: vscode.Uri} ) => {
         var editor: vscode.TextEditor = null;
         
         // Look for the editor we parsed
@@ -496,6 +504,7 @@ export function activate(context: vscode.ExtensionContext) {
                 parseBarItem.color = 'white';
             }
         );
+        
     } );
     
     languageClient.onRequest({method: "onSaveSuccessful"}, (params: {newSource: string, docUri: vscode.Uri} ) => {
@@ -703,7 +712,10 @@ export function activate(context: vscode.ExtensionContext) {
             console.log('opened document ' + document.fileName + '\n');
             if (document.languageId == "gold") {
                 // console.log('... a Gold document !');
-                parse(false, document);
+                if ((new Date()).getTime() - lastParse > 1000) {    
+                    parse(false, document);
+                    lastParse = (new Date()).getTime();
+                }
             }
         }
     );
@@ -720,15 +732,9 @@ export function activate(context: vscode.ExtensionContext) {
     
     vscode.languages.setLanguageConfiguration("gold", {"comments": { "lineComment": ";" } } );
     
-    // vscode.workspace.onDidSaveTextDocument((doc : vscode.TextDocument) => {
-    //         if (doc.languageId == "gold") {
-    //             // Where do I get the current diagnostics ?
-    //         }
-    //     }
-    // );
     
-    //disposable = vscode.window.setStatusBarMessage('Ready');
-    //context.subscriptions.push(disposable);
+    disposable = vscode.window.setStatusBarMessage('Ready');
+    context.subscriptions.push(disposable);
 }
 
 // this method is called when your extension is deactivated

@@ -11,7 +11,7 @@ import {
     InitializeParams, InitializeResult, TextDocumentIdentifier, TextDocumentPosition,
     CompletionItem, CompletionItemKind, CompletionList, Hover, CodeActionParams, Command,
     SymbolInformation, ReferenceParams, Position, SignatureHelp, ParameterInformation, 
-    SignatureInformation, Range, RenameParams
+    SignatureInformation, Range, RenameParams, WorkspaceSymbolParams
 } from 'vscode-languageserver';
 
 import { Definition, TextDocument, Location } from 'vscode';
@@ -195,6 +195,7 @@ interface tPositionRange {
 
 
 interface tEntity {
+    label: string,
     name: string,
     ownerName: string,
     theType: string,
@@ -231,7 +232,8 @@ interface tVariable {
    name : string,
    variableType : string,
    documentation : string,
-   range : tRange
+   range : tRange,
+   entity : tEntity
 }
 
 interface tParameter {
@@ -245,29 +247,29 @@ interface tMethod {
    parameters : tParameter[],
    returnType : string,
    documentation : string,
-   range : tRange
+   range : tRange,
+   entity : tEntity
 }
 
 interface tType {
    name : string,
    documentation : string,
-   range : tRange
+   range : tRange,
+   entity : tEntity
 }
 
 interface tConstant {
    name : string,
    documentation : string,
-   range : tRange
-}
-
-interface tEntity {
-    label : string
+   range : tRange,
+   entity : tEntity
 }
 
 interface tMetaInfo {
    moduleName : string,
    documentation : string,
    variables : tVariable[],
+   locals : tVariable[],
    methods : tMethod[],
    constants : tConstant[],
    types : tType[],
@@ -284,7 +286,6 @@ interface tWhereUsed {
     location: string,
     description: string
 }
-
 
 let outlines : tOutline[];
 let metainfo : tMetaInfo[];
@@ -347,33 +348,6 @@ function createDocFileFor(className) : Thenable<string> {
         return fileName;
     });
 }
-
-function updateOutlinesForClass(classname : string, source : string) : void {
-    
-    var _rp= rp(
-    {
-        method: 'GET',
-        uri: url + '/api/rest/classOrModule/' + classname + '/outlines', 
-        body: {
-            "name": classname,
-            "ancestor": "",
-            "content": source
-        },
-        json: true
-    });
-    
-    _rp.then( (response) => {
-            if (outlines == undefined) {
-                outlines = [];
-            }
-            outlines[classname] = response;
-            return outlines[classname];
-        })
-        .catch( (response) => {
-            connection.console.log('Error while updating outlines. \n' + response);
-        });
-}
-
 
 function updateMetaInfoForClass(classname : string, source : string) : Thenable<tMetaInfo> {
     
@@ -544,10 +518,14 @@ connection.onRequest({method: "parse"} ,
             }
         } else {
             if (params.notifyNewSource) {
-                updateMetaInfoForClass(params.classname, params.source);
-                connection.sendRequest(
-                    { method: "onParseSuccessful" }, 
-                    { docUri: params.textDocument.uri, newSource: response.content}
+                updateMetaInfoForClass(params.classname, params.source)
+                .then(
+                    (meta : tMetaInfo) => {
+                        connection.sendRequest(
+                            { method: "onParseSuccessful" }, 
+                            { docUri: params.textDocument.uri, newSource: response.content}
+                        );
+                    }
                 );
             }
         }
@@ -599,10 +577,15 @@ connection.onRequest({method: "save"} ,
             }
         } else {
             if (params.notifyNewSource) {
-                updateMetaInfoForClass(params.classname, params.source);
-                connection.sendRequest(
-                    { method: "onSaveSuccessful" },
-                    { docUri: params.textDocument.uri, newSource: response.content}
+                updateMetaInfoForClass(params.classname, params.source)
+                .then(
+                    (meta : tMetaInfo) => 
+                    {
+                        connection.sendRequest(
+                            { method: "onSaveSuccessful" },
+                            { docUri: params.textDocument.uri, newSource: response.content}
+                        );
+                    }
                 );
             }
         }
@@ -765,10 +748,6 @@ function FindDefinition(identifier : string, ownerName : string) : Thenable<tRan
     );
 }
 
-connection.onRenameRequest( (RenameParams) => { return null;} );
-
-connection.onCodeAction( (params : CodeActionParams) : Command[] => {return null;});
-
 connection.onDefinition((position : TextDocumentPosition) : Definition | Thenable<Definition> => 
 {
     // export declare type Definition = Location | Location[];
@@ -789,7 +768,35 @@ connection.onDefinition((position : TextDocumentPosition) : Definition | Thenabl
         
     // outline.entity is defined in a class or module
     // Get definition position inside the owner
-    if (outline.entity.ownerName != "") {
+    if (outline.entity.theType == "aLocalVarDesc") {
+        
+        let definitionReq = rp({
+            method: 'GET',
+            uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
+            json: true });
+        
+        
+        for (var index = 0; index < metainfo[moduleName].locals.length; index++) {
+        
+            if (outline.entity.location == metainfo[moduleName].locals[index].entity.location) {
+                return {
+                    uri: position.uri,
+                    range : {
+                        "start": {
+                            "line": metainfo[moduleName].locals[index].range.startpos.line,
+                            "character": metainfo[moduleName].locals[index].range.startpos.column
+                        },
+                        "end": {
+                            "line": metainfo[moduleName].locals[index].range.endpos.line,
+                            "character": metainfo[moduleName].locals[index].range.endpos.column
+                        }
+                    }
+                };
+            }
+        }
+                
+        
+    } else if (outline.entity.ownerName != "") {
 
         let definitionReq = rp({
             method: 'GET',
@@ -832,41 +839,7 @@ connection.onDefinition((position : TextDocumentPosition) : Definition | Thenabl
         });
         
     } else {
-    // outline.entity a class or module
-    // Give difinition of the class, with position 0
-    
-    
-        let contentReq = rp({
-            method: 'GET',
-            uri: url + '/api/rest/classOrModule/' + outline.name,
-            json: true });
-            
-        // return repoReq
-        // .then((repoPath) => {
-            
-        return connection.sendRequest({ method: "getRootPath" })
-        .then( (rootPath : string) => {
-            let repoPath = rootPath.replace(/\\/g, '/');
-            // Retrive the owner content
-            return contentReq
-        .then((response) => { 
-            fs.writeFile(repoPath + "/" + outline.name + ".gold", response["content"]);
-            
-            return {
-                uri: "file:///" + repoPath + "/" + outline.name + ".gold",
-                range : {
-                    "start": {
-                        "line": 0,
-                        "character": 0
-                    },
-                    "end": {
-                        "line": 0,
-                        "character": 0
-                    }
-                }
-            };
-        });
-        });
+        return null;
     }
 });
 
@@ -1110,6 +1083,24 @@ connection.onSignatureHelp((docPosition : TextDocumentPosition) : Thenable<Signa
             return result;
         });
 });
+
+connection.onWorkspaceSymbol( 
+    (params : WorkspaceSymbolParams) : SymbolInformation[] | Thenable<SymbolInformation[]> => 
+    {
+        // export interface WorkspaceSymbolParams {
+        //     /**
+        //      * A non-empty query string
+        //      */
+        //     query: string;
+        // }
+        
+        return null;
+    }
+);
+
+connection.onRenameRequest( (RenameParams) => { return null;} );
+
+connection.onCodeAction( (params : CodeActionParams) : Command[] => {return null;});
 
 // Listen on the connection
 connection.listen();

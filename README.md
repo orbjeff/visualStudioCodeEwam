@@ -70,8 +70,10 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 ## Alpha 0.2.3 - *Deliver on May 20, 2016*
 
 - [ ] Generate source code
-- [ ] Timer on parse
-- [ ] Class tree visualization : handle directly the "select from name" based on the currently open module
+- [x] Timer on parse
+- [x] Class tree visualization : handle directly the "select from name" based on the currently open module
+- [x] Go to Definition on local variables
+- [x] Polish syntaxe highlightinh
 - [ ] Class documentation : improve robustness
 - [ ] In Ctrl+Shift+O : add parent classes symbols ?
      - => connection.onWorkspaceSymbol => metamodel browser request
@@ -80,14 +82,14 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
     - [ ] Crash of eWam Service when using vscode
     - [ ] Outline becomes unavailable at some point (onHover not called anymore)
     - [ ] fix item kind of suggestions
-- [ ] Go to Definition on local variables
+    - [x] Too large CString assignment
 
-## Testing - *Publish on 13 May 2016*
+## Testing - *Publish on ??*
 
 - [ ] Verify compatibility 6.1 / 6.1.5 (test multi user) - seb
 
 ## Upcoming tasks
-
+    
 - [ ] Parsing errors iteration 2 : code analyzer feedback 
 - [ ] Ergonomic way to override variables and methods
 - [ ] Symbol renaming
@@ -95,8 +97,11 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 - [ ] Review "Code Actions" feature : could be implemented using code analyzer
 - [ ] Additional validations (check repo is writable) - nicolas api
 - [ ] Other entity management (create new scenario, translation, ...)
-- [ ] Polish syntaxe highlightinh
 - [ ] Demo video (with OBS - https://obsproject.com/download)
+
+- [ ] Questions de Florian : 
+    - [ ] Fichiers virtuels ?
+    - [ ] Debugger ?
 
 ## Alpha 0.9 : Pre-beta
 
