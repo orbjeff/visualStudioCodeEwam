@@ -5,47 +5,69 @@ scopeName: source.gold
 fileTypes: ['gold', 'god']
 uuid: 63661b9d-cf52-4bbe-b3e2-251d5072cf91
 
-# for VSCode {
-foldingStartMarker: (function)|(procedure)
-foldingStopMarker: (endFunc)|(endProc)
-# }
-
 patterns:
 - comment: Comments
   name: comment.line.character
   match: '[;].*'
 
+- comment: Variable definitions
+  match: '(var ){0,1}([a-zA-Z\_][a-zA-Z0-9\_]*)( :)( refTo|listOf){0,1}( \[.*\]){0,1}( [a-zA-Z\_][a-zA-Z0-9\_]*)'
+  captures:
+    '1' : {name: storage.type}
+    # '2' : {name: variable.other}
+    '4' : {name: keyword.other}
+    '6' : {name: storage.type.gold}
+
 - comment: Numeric constants
   name: constant.numeric
-  match: '[0-9]+[.]{0-1}[0-9]*'
+  match: '\b(-){0,1}([0-9]+[.][0-9]+)\b|\b([0-9]+)\b'
 
 - comment: Character constants
   name: constant.character
   match: '[#][0-9]{3}'
 
 - comment: Language constants
-  name: constant.language
-  match: '(true|True|false|False|nil|Nil)'
+  match: '\b(true|True|false|False|nil|Nil)\b'
+  captures:
+    '1': {name: constant.language}
 
 - comment: Language constants
-  name: variable.language
-  match: '(self|Self|_Result)'
+  match: '\b(self|Self|_Result)\b'
+  captures:
+    '1' : {name: variable.language}
+
+- comment: Numeric constants
+  name: keyword.operator
+  match: '\b(fetch|select|OQLClassId|OQLCount|OQLMax|OQLMin|OQLSum|OqlUpdateDate|OqlUpdateTime|or|ord|order|by|out|pass|and|bAnd|bNot|bOr|bXor|where|like|not|xor|into|Upcase|using)\b'
+
+- comment: Types
+  match: '\b(Int1|Int2|Int4|Int8|Num8|Text|Pointer|CString|Decimal|Boolean|int|char|array|chr)\b'
+  captures:
+    '1': {name: storage.type.gold}
+
+- comment: Types
+  name: storage.type.gold
+  match: '\b(num)\([0-9]+\)\b'
 
 - comment: General keywords
-  name: keyword.other
-  match: '\b(_MethodName|_ModuleName|_move|absolute|allVersionsOf|and|array|bAnd|begin|bNot|bOr|bXor|char|chr|concat|const|continue|CString|Decimal|descending|dispose|distinct|exit|first|from|Group|by|in|inherited|instanceOf|inOut|int|inverse|last|length|like|listOf|member|memory|MetaModelEntity|new|nil|not|num|of|fetch|select|OQLClassId|OQLCount|OQLMax|OQLMin|OQLSum|OqlUpdateDate|OqlUpdateTime|or|ord|order|by|out|pass|PhantomsToo|pred|refTo|reimplem|return|Scenario|sizeof|step|string|succ|throw|type|Upcase|uses|using|var|versioned|when|where|Write|WriteLn|xor|into|Sql|at|Sql|packed|anycase|dynamic|rem|global|remote|multiLang)\b'
+  match: '\b(_MethodName|_ModuleName|_move|absolute|allVersionsOf|begin|concat|continue|descending|dispose|distinct|exit|first|from|Group|by|in|inherited|instanceOf|inOut|inverse|last|length|listOf|member|memory|MetaModelEntity|new|nil|num|of|PhantomsToo|pred|refTo|reimplem|return|Scenario|sizeof|step|string|succ|throw|uses|versioned|Write|WriteLn|at|packed|anycase|dynamic|rem|global|remote|multiLang)\b'
+  captures:
+    '1': {name: keyword.other}
 
 - comment: Structural keywords
-  name: keyword.structure
   match: '\b(class|endClass|module|endModule|function|endFunc|procedure|endProc|nativeRecord|record|endRecord|end)\b'
+  captures:
+    '1': {name: keyword.structure}
 
 - comment: Flow control keywords
-  name: keyword.control
-  match: '\b(if|then|elseIf|else|endIf|while|endWhile|for|to|downTo|forEach|endFor|repeat|until|loop|endLoop|break|try|catch|when|endWhen|finally|endTry|switch|endSwitch)\b'
+  match: '\b(if|then|elseIf|else|endIf|while|endWhile|for|to|downTo|forEach|endFor|repeat|until|loop|endLoop|break|try|catch|when|endWhen|finally|endTry|switch|endSwitch|when)\b'
+  captures:
+    '1': {name: keyword.control}
 
 - comment: Entity declaration
-  name: storage.type
-  match: '(class|module|function|procedure|nativeRecord|record)'
+  match: '\b(class|module|function|procedure|nativeRecord|record|var|const|type)\b'
+  captures:
+    '1': {name: storage.type}
 
 - comment: Modifiers keywords
   name: storage.modifier
@@ -81,11 +103,11 @@ patterns:
 #   beginCaptures:
 #     '2': {name: entity.name.function}
 
-- comment: Procedure definition
-  name: meta.function.gold
-  match: '(procedure)'
+# - comment: Procedure definition
+#   name: meta.function.gold
+#   match: '(procedure)'
 
-- comment: Function definition
-  name: meta.function.gold
-  match: '(function)'
+# - comment: Function definition
+#   name: meta.function.gold
+#   match: '(function)'
 ...

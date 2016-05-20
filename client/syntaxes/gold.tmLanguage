@@ -7,10 +7,6 @@
 		<string>gold</string>
 		<string>god</string>
 	</array>
-	<key>foldingStartMarker</key>
-	<string>(function)|(procedure)</string>
-	<key>foldingStopMarker</key>
-	<string>(endFunc)|(endProc)</string>
 	<key>name</key>
 	<string>Gold</string>
 	<key>patterns</key>
@@ -24,10 +20,34 @@
 			<string>comment.line.character</string>
 		</dict>
 		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>storage.type</string>
+				</dict>
+				<key>4</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.other</string>
+				</dict>
+				<key>6</key>
+				<dict>
+					<key>name</key>
+					<string>storage.type.gold</string>
+				</dict>
+			</dict>
+			<key>comment</key>
+			<string>Variable definitions</string>
+			<key>match</key>
+			<string>(var ){0,1}([a-zA-Z\_][a-zA-Z0-9\_]*)( :)( refTo|listOf){0,1}( \[.*\]){0,1}( [a-zA-Z\_][a-zA-Z0-9\_]*)</string>
+		</dict>
+		<dict>
 			<key>comment</key>
 			<string>Numeric constants</string>
 			<key>match</key>
-			<string>[0-9]+[.]{0-1}[0-9]*</string>
+			<string>\b(-){0,1}([0-9]+[.][0-9]+)\b|\b([0-9]+)\b</string>
 			<key>name</key>
 			<string>constant.numeric</string>
 		</dict>
@@ -40,52 +60,118 @@
 			<string>constant.character</string>
 		</dict>
 		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>constant.language</string>
+				</dict>
+			</dict>
 			<key>comment</key>
 			<string>Language constants</string>
 			<key>match</key>
-			<string>(true|True|false|False|nil|Nil)</string>
-			<key>name</key>
-			<string>constant.language</string>
+			<string>\b(true|True|false|False|nil|Nil)\b</string>
 		</dict>
 		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>variable.language</string>
+				</dict>
+			</dict>
 			<key>comment</key>
 			<string>Language constants</string>
 			<key>match</key>
-			<string>(self|Self|_Result)</string>
-			<key>name</key>
-			<string>variable.language</string>
+			<string>\b(self|Self|_Result)\b</string>
 		</dict>
 		<dict>
+			<key>comment</key>
+			<string>Numeric constants</string>
+			<key>match</key>
+			<string>\b(fetch|select|OQLClassId|OQLCount|OQLMax|OQLMin|OQLSum|OqlUpdateDate|OqlUpdateTime|or|ord|order|by|out|pass|and|bAnd|bNot|bOr|bXor|where|like|not|xor|into|Upcase|using)\b</string>
+			<key>name</key>
+			<string>keyword.operator</string>
+		</dict>
+		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>storage.type.gold</string>
+				</dict>
+			</dict>
+			<key>comment</key>
+			<string>Types</string>
+			<key>match</key>
+			<string>\b(Int1|Int2|Int4|Int8|Num8|Text|Pointer|CString|Decimal|Boolean|int|char|array|chr)\b</string>
+		</dict>
+		<dict>
+			<key>comment</key>
+			<string>Types</string>
+			<key>match</key>
+			<string>\b(num)\([0-9]+\)\b</string>
+			<key>name</key>
+			<string>storage.type.gold</string>
+		</dict>
+		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.other</string>
+				</dict>
+			</dict>
 			<key>comment</key>
 			<string>General keywords</string>
 			<key>match</key>
-			<string>\b(_MethodName|_ModuleName|_move|absolute|allVersionsOf|and|array|bAnd|begin|bNot|bOr|bXor|char|chr|concat|const|continue|CString|Decimal|descending|dispose|distinct|exit|first|from|Group|by|in|inherited|instanceOf|inOut|int|inverse|last|length|like|listOf|member|memory|MetaModelEntity|new|nil|not|num|of|fetch|select|OQLClassId|OQLCount|OQLMax|OQLMin|OQLSum|OqlUpdateDate|OqlUpdateTime|or|ord|order|by|out|pass|PhantomsToo|pred|refTo|reimplem|return|Scenario|sizeof|step|string|succ|throw|type|Upcase|uses|using|var|versioned|when|where|Write|WriteLn|xor|into|Sql|at|Sql|packed|anycase|dynamic|rem|global|remote|multiLang)\b</string>
-			<key>name</key>
-			<string>keyword.other</string>
+			<string>\b(_MethodName|_ModuleName|_move|absolute|allVersionsOf|begin|concat|continue|descending|dispose|distinct|exit|first|from|Group|by|in|inherited|instanceOf|inOut|inverse|last|length|listOf|member|memory|MetaModelEntity|new|nil|num|of|PhantomsToo|pred|refTo|reimplem|return|Scenario|sizeof|step|string|succ|throw|uses|versioned|Write|WriteLn|at|packed|anycase|dynamic|rem|global|remote|multiLang)\b</string>
 		</dict>
 		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.structure</string>
+				</dict>
+			</dict>
 			<key>comment</key>
 			<string>Structural keywords</string>
 			<key>match</key>
 			<string>\b(class|endClass|module|endModule|function|endFunc|procedure|endProc|nativeRecord|record|endRecord|end)\b</string>
-			<key>name</key>
-			<string>keyword.structure</string>
 		</dict>
 		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.control</string>
+				</dict>
+			</dict>
 			<key>comment</key>
 			<string>Flow control keywords</string>
 			<key>match</key>
-			<string>\b(if|then|elseIf|else|endIf|while|endWhile|for|to|downTo|forEach|endFor|repeat|until|loop|endLoop|break|try|catch|when|endWhen|finally|endTry|switch|endSwitch)\b</string>
-			<key>name</key>
-			<string>keyword.control</string>
+			<string>\b(if|then|elseIf|else|endIf|while|endWhile|for|to|downTo|forEach|endFor|repeat|until|loop|endLoop|break|try|catch|when|endWhen|finally|endTry|switch|endSwitch|when)\b</string>
 		</dict>
 		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>storage.type</string>
+				</dict>
+			</dict>
 			<key>comment</key>
 			<string>Entity declaration</string>
 			<key>match</key>
-			<string>(class|module|function|procedure|nativeRecord|record)</string>
-			<key>name</key>
-			<string>storage.type</string>
+			<string>\b(class|module|function|procedure|nativeRecord|record|var|const|type)\b</string>
 		</dict>
 		<dict>
 			<key>comment</key>
@@ -132,22 +218,6 @@
 					<string>constant.character</string>
 				</dict>
 			</array>
-		</dict>
-		<dict>
-			<key>comment</key>
-			<string>Procedure definition</string>
-			<key>match</key>
-			<string>(procedure)</string>
-			<key>name</key>
-			<string>meta.function.gold</string>
-		</dict>
-		<dict>
-			<key>comment</key>
-			<string>Function definition</string>
-			<key>match</key>
-			<string>(function)</string>
-			<key>name</key>
-			<string>meta.function.gold</string>
 		</dict>
 	</array>
 	<key>scopeName</key>
