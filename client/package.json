@@ -2,7 +2,7 @@
     "name": "ewamvscadaptor",
     "displayName": "eWamVSCAdaptor",
     "description": "e-Wam Visual Studio Adaptor",
-    "version": "0.1.6",
+    "version": "0.2.3",
     "publisher": "mphasiswyde",
     "galleryBanner": {
         "color": "#5c2d91",
@@ -100,7 +100,7 @@
                 "mac": "alt+t"
             },
             {
-                "command": "ewam.previewDoc",
+                "command": "ewam.showModuleDocumentation",
                 "key": "alt+t",
                 "mac": "alt+t",
                 "when": "editorTextFocus"
@@ -152,7 +152,7 @@
                 "title": "eWam Show Class Tree"
             },
             {
-                "command": "ewam.previewDoc",
+                "command": "ewam.showModuleDocumentation",
                 "title": "eWam Show Documentation"
             }
         ],
@@ -223,11 +223,11 @@
 
 	},
 	"devDependencies": {
-		"typescript": "^1.8.9",
-		"vscode": "^0.11.12"
+		"typescript": "^1.8.10",
+		"vscode": "^0.11.13"
 	},
 	"dependencies": {
-		"vscode-languageclient": "^1.4.2",
-        "axios": "^0.9.1"
+		"vscode-languageclient": "^2.2.1",
+        "axios": "^0.11.1"
     }
 }

@@ -10,6 +10,14 @@ patterns:
   name: comment.line.character
   match: '[;].*'
 
+- comment: Variable definitions
+  match: '(var ){0,1}([a-zA-Z\_][a-zA-Z0-9\_]*)( :)( refTo|listOf){0,1}( \[.*\]){0,1}( [a-zA-Z\_][a-zA-Z0-9\_]*)'
+  captures:
+    '1' : {name: storage.type}
+    # '2' : {name: variable.other}
+    '4' : {name: keyword.other}
+    '6' : {name: storage.type.gold}
+
 - comment: Numeric constants
   name: constant.numeric
   match: '\b(-){0,1}([0-9]+[.][0-9]+)\b|\b([0-9]+)\b'
@@ -42,7 +50,7 @@ patterns:
   match: '\b(num)\([0-9]+\)\b'
 
 - comment: General keywords
-  match: '\b(_MethodName|_ModuleName|_move|absolute|allVersionsOf|begin|concat|continue|descending|dispose|distinct|exit|first|from|Group|by|in|inherited|instanceOf|inOut|inverse|last|length|listOf|member|memory|MetaModelEntity|new|nil|num|of|PhantomsToo|pred|refTo|reimplem|return|Scenario|sizeof|step|string|succ|throw|uses|versioned|Write|WriteLn|at|packed|anycase|dynamic|rem|global|remote|multiLang|fetch|select|OQLClassId|OQLCount|OQLMax|OQLMin|OQLSum|OqlUpdateDate|OqlUpdateTime|or|ord|order|by|out|pass|and|bAnd|bNot|bOr|bXor|where|like|not|xor|into|Upcase|using)\b'
+  match: '\b(_MethodName|_ModuleName|_move|absolute|allVersionsOf|begin|concat|continue|descending|dispose|distinct|exit|first|from|Group|by|in|inherited|instanceOf|inOut|inverse|last|length|listOf|member|memory|MetaModelEntity|new|nil|num|of|PhantomsToo|pred|refTo|reimplem|return|Scenario|sizeof|step|string|succ|throw|uses|versioned|Write|WriteLn|at|packed|anycase|dynamic|rem|global|remote|multiLang)\b'
   captures:
     '1': {name: keyword.other}
 

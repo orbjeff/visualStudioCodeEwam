@@ -7,14 +7,14 @@
 import {
     IPCMessageReader, IPCMessageWriter,
     createConnection, IConnection, TextDocumentSyncKind,
-    TextDocuments, ITextDocument, Diagnostic, DiagnosticSeverity,
-    InitializeParams, InitializeResult, TextDocumentIdentifier, TextDocumentPosition,
+    TextDocuments, TextDocument, Diagnostic, DiagnosticSeverity,
+    InitializeParams, InitializeResult, TextDocumentPositionParams,
     CompletionItem, CompletionItemKind, CompletionList, Hover, CodeActionParams, Command,
     SymbolInformation, ReferenceParams, Position, SignatureHelp, ParameterInformation, 
-    SignatureInformation, Range, RenameParams, WorkspaceSymbolParams
+    SignatureInformation, Range, RenameParams, WorkspaceSymbolParams, DocumentFormattingParams, TextEdit
 } from 'vscode-languageserver';
 
-import { Definition, TextDocument, Location } from 'vscode';
+import { Definition, Location } from 'vscode';
 // import * as vscode from 'vscode';
 import * as rp from 'request-promise';
 import * as fs from 'fs';
@@ -49,7 +49,8 @@ connection.onInitialize(
                 documentSymbolProvider : true,
                 signatureHelpProvider : { triggerCharacters : [ "(", ",", "." ] },
                 definitionProvider : true,
-                referencesProvider : true
+                referencesProvider : true,
+                documentFormattingProvider : true
             }
         }
     }
@@ -62,7 +63,6 @@ documents.onDidChangeContent(
         validateTextDocument(change.document);
     }
 );
-
 
 // The settings interface describe the server relevant settings part
 interface Settings {
@@ -86,7 +86,7 @@ connection.onDidChangeConfiguration((change) => {
     documents.all().forEach(validateTextDocument);
 });
 
-function validateTextDocument(textDocument: ITextDocument): void {
+function validateTextDocument(textDocument: TextDocument): void {
     let diagnostics: Diagnostic[] = [];
     let lines = textDocument.getText().split(/\r?\n/g);
     let problems = 0;
@@ -126,21 +126,22 @@ function transform(response:CompletionList): CompletionList {
 }
 
 // This handler provides the initial list of the completion items.
-connection.onCompletion((textDocumentPosition: TextDocumentPosition) : Thenable<CompletionList> => {
-   //
-    var lines = documents.get(textDocumentPosition.uri).getText().split(/\r?\n/g);
+connection.onCompletion(
+    (textDocumentPosition: TextDocumentPositionParams) : Thenable<CompletionList> => {
+   
+    var lines = documents.get(textDocumentPosition.textDocument.uri).getText().split(/\r?\n/g);
 
     var position = textDocumentPosition.position;
     var line = lines[position.line];
-    var className = textDocumentPosition.uri.substring(
-        textDocumentPosition.uri.lastIndexOf('/') + 1, textDocumentPosition.uri.lastIndexOf('.')
+    var className = textDocumentPosition.textDocument.uri.substring(
+        textDocumentPosition.textDocument.uri.lastIndexOf('/') + 1, textDocumentPosition.textDocument.uri.lastIndexOf('.')
     );
     
     var body = {
         implem: {
             name: className,
             ancestor: "",
-            content: documents.get(textDocumentPosition.uri).getText()
+            content: documents.get(textDocumentPosition.textDocument.uri).getText()
         },
         lineInfo: {
             lineContent: line,
@@ -149,8 +150,6 @@ connection.onCompletion((textDocumentPosition: TextDocumentPosition) : Thenable<
         }
     };
 
-   //var _rp=  rp({ method: 'POST', uri: url + '/api/rest/classOrModule/' + className + '/Suggest', json: true, body: body });
-   
    var _rp = rp(
        {    
            method: 'POST',
@@ -158,13 +157,12 @@ connection.onCompletion((textDocumentPosition: TextDocumentPosition) : Thenable<
            json: true,
            body: {body: body}
         });
-    //return thenable;
     
-    return _rp.then( (response) => transform(response) );
+    return _rp.then( (response) => {
+        return transform(response);
+    });
  
 });
-
-
 
 /*
 connection.onDidOpenTextDocument((params) => {
@@ -192,7 +190,6 @@ interface tPositionRange {
     line : number,
     column : number
 }
-
 
 interface tEntity {
     label: string,
@@ -303,9 +300,10 @@ function createDocFileFor(className) : Thenable<string> {
         content += '  <head><title>' + className + ' documentation</title></head>\n';
         content += '  <body>\n';
         content += '    <blockquote>';
-        content += '      <h1>' + className + ' summary</h1>\n';
+        content += '      <h1 style="color: red;">' + className + ' summary</h1>\n';
         content += '      <p>' + metainfo[className].documentation.replace(/\n/g, "<br/>") + '      </p>\n';
-        content += '      <h1>' + className + ' parents</h1>\n';
+        
+        content += '      <h1 style="color: red;">' + className + ' parents</h1>\n';
         
         let indent : string = '';
         
@@ -317,18 +315,22 @@ function createDocFileFor(className) : Thenable<string> {
             indent += '&nbsp;&nbsp;&nbsp;';
         }
         
-        content += '      <h1>' + className + ' descendants</h1>\n';
+        content += '      <h1 style="color: red;">' + className + ' descendants</h1>\n';
+        content += '      <ul>\n';
         indent = '';
         
         for (var index = 0; index < metainfo[className].childs.length; index++) {
-            content += indent + '<a href="file:///' + rootPath + '/'+ 
+            content += indent + '        <li><a href="file:///' + rootPath + '/'+ 
                 metainfo[className].childs[index].label + '.gold">' +
-                metainfo[className].childs[index].label + '</a><br/>\n';
+                metainfo[className].childs[index].label + '</a></li>\n';
                 
-            indent += '&nbsp;&nbsp;&nbsp;';
+            // indent += '&nbsp;&nbsp;&nbsp;';
         }
         
-        content += '      <h1>' + className + ' sisters</h1>\n';
+        content += '      </ul>\n';
+        
+        
+        content += '      <h1 style="color: red;">' + className + ' sisters</h1>\n';
         content += '      <ul>\n';
         indent = '';
         
@@ -345,12 +347,12 @@ function createDocFileFor(className) : Thenable<string> {
         content += '</html>\n';
         
         fs.writeFile(fileName, content);
-        return fileName;
+        return content;
     });
 }
 
 function updateMetaInfoForClass(classname : string, source : string) : Thenable<tMetaInfo> {
-    
+
     var _rp = rp(
     {
         method: 'GET',
@@ -374,7 +376,6 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
         json: true
     });
     
-    metainfo[classname] = {};
     return _rp
     .then( (response) => {
             if (metainfo == undefined) {
@@ -416,10 +417,10 @@ function getOutlineAt(position : Position, modulename : string) : tOutline {
     return result;
 }
 
-connection.onHover((textDocumentPosition: TextDocumentPosition) : Thenable<Hover> | Hover => {
+connection.onHover((textDocumentPosition: TextDocumentPositionParams) : Thenable<Hover> | Hover => {
     
-    var className = textDocumentPosition.uri.substring(
-        textDocumentPosition.uri.lastIndexOf('/') + 1, textDocumentPosition.uri.lastIndexOf('.')
+    var className = textDocumentPosition.textDocument.uri.substring(
+        textDocumentPosition.textDocument.uri.lastIndexOf('/') + 1, textDocumentPosition.textDocument.uri.lastIndexOf('.')
     );
     
     if (metainfo == undefined) {
@@ -476,16 +477,21 @@ connection.onHover((textDocumentPosition: TextDocumentPosition) : Thenable<Hover
 });
 
 
+interface tParseResult {
+    docUri: string,
+    newSource: string 
+};
+
 //Parse
-connection.onRequest({method: "parse"} , 
+connection.onRequest({method: "parse"}, 
                      (params : {
                         "classname": string,
                         "source": string,
                         "notifyNewSource" : boolean,
-                        "textDocument" : TextDocument }) : void => 
+                        "uri" : string }) : Thenable<tParseResult> => 
 {
         
-    var _rp= rp(
+    var _rp = rp(
     {
         method: 'POST',
         uri: url + '/api/rest/classOrModule/' + params.classname + '/parse',
@@ -498,9 +504,10 @@ connection.onRequest({method: "parse"} ,
         json: true
     });
     
-    _rp.then( (response) => {
-        
+    return _rp.then( (response) => {
         let diagnostics: Diagnostic[] = [];
+        
+        let result : tParseResult = {docUri:'', newSource:''};
         
         if ("errors" in response && response.errors.length > 0) {
             
@@ -516,32 +523,33 @@ connection.onRequest({method: "parse"} ,
                     "message": errors[index].msg
                 });
             }
+            
+            //Successfully parsed or not, send diagnostics anyway. 
+            connection.sendDiagnostics({ uri: params.uri, diagnostics });
+            
         } else {
+            
+            //Successfully parsed or not, send diagnostics anyway.
+            connection.sendDiagnostics({ uri: params.uri, diagnostics });
+            
             if (params.notifyNewSource) {
-                updateMetaInfoForClass(params.classname, params.source)
-                .then(
-                    (meta : tMetaInfo) => {
-                        connection.sendRequest(
-                            { method: "onParseSuccessful" }, 
-                            { docUri: params.textDocument.uri, newSource: response.content}
-                        );
-                    }
-                );
+                updateMetaInfoForClass(params.classname, params.source);
+                
+                result.docUri = params.uri;
+                result.newSource = response.content;
             }
         }
         
-        //Successfully parsed or not, send diagnostics anyway. 
-        connection.sendDiagnostics({ uri: params.textDocument.uri.external, diagnostics });
+        return result;
     });
 });
-
 
 connection.onRequest({method: "save"} , 
                      (params : {
                         "classname": string,
                         "source": string,
                         "notifyNewSource" : boolean,
-                        "textDocument" : TextDocument }) : void => 
+                        "uri" : string }) : Thenable<tParseResult> => 
 {
         
     var _rp= rp(
@@ -557,9 +565,11 @@ connection.onRequest({method: "save"} ,
         json: true
     });
     
-    _rp.then( (response) => {
+    return _rp.then( (response) => {
         
         let diagnostics: Diagnostic[] = [];
+        
+        let result : tParseResult = {docUri:'', newSource:''};
         
         if ("errors" in response && response.errors.length > 0) {
             
@@ -575,26 +585,26 @@ connection.onRequest({method: "save"} ,
                     "message": errors[index].msg
                 });
             }
+            
+            //Successfully parsed or not, send diagnostics anyway. 
+            connection.sendDiagnostics({ uri: params.uri, diagnostics });
+            
         } else {
+            
+            //Successfully parsed or not, send diagnostics anyway. 
+            connection.sendDiagnostics({ uri: params.uri, diagnostics });
+            
             if (params.notifyNewSource) {
-                updateMetaInfoForClass(params.classname, params.source)
-                .then(
-                    (meta : tMetaInfo) => 
-                    {
-                        connection.sendRequest(
-                            { method: "onSaveSuccessful" },
-                            { docUri: params.textDocument.uri, newSource: response.content}
-                        );
-                    }
-                );
+                updateMetaInfoForClass(params.classname, params.source);
+                result.docUri = params.uri;
+                result.newSource = response.content;
             }
         }
         
-        //Successfully parsed or not, send diagnostics anyway. 
-        connection.sendDiagnostics({ uri: params.textDocument.uri.external, diagnostics });
+        return result;
+        
     });
 });
-
 
 /*
     ;VS CODE enum CompletionItemKind {
@@ -701,10 +711,10 @@ function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] 
 }
 
 connection.onDocumentSymbol( 
-    (docIdentifier : TextDocumentIdentifier) : SymbolInformation[] | Thenable<SymbolInformation[]> => 
+    (docIdentifier : TextDocumentPositionParams) : SymbolInformation[] | Thenable<SymbolInformation[]> => 
     {
-        var className = docIdentifier.uri.substring(
-            docIdentifier.uri.lastIndexOf('/') + 1, docIdentifier.uri.lastIndexOf('.')
+        var className = docIdentifier.textDocument.uri.substring(
+            docIdentifier.textDocument.uri.lastIndexOf('/') + 1, docIdentifier.textDocument.uri.lastIndexOf('.')
         );
         
         // If class name isn't found, bail out
@@ -715,10 +725,10 @@ connection.onDocumentSymbol(
         if ( !(className in metainfo) ) {
             return updateMetaInfoForClass(className, "")
             .then((meta : tMetaInfo) => {
-                return getMetaInfoFor(className, docIdentifier.uri);
+                return getMetaInfoFor(className, docIdentifier.textDocument.uri);
             });
         } else {
-            return getMetaInfoFor(className, docIdentifier.uri);
+            return getMetaInfoFor(className, docIdentifier.textDocument.uri);
         }
     }
 );
@@ -748,16 +758,16 @@ function FindDefinition(identifier : string, ownerName : string) : Thenable<tRan
     );
 }
 
-connection.onDefinition((position : TextDocumentPosition) : Definition | Thenable<Definition> => 
-{
+connection.onDefinition(
+    (position : TextDocumentPositionParams) : Definition | Thenable<Definition> => {
     // export declare type Definition = Location | Location[];
     // export interface Location {
     //     uri: string;
     //     range: Range;
     // }
     let moduleName : string = 
-        position.uri.substring(
-            position.uri.lastIndexOf('/') + 1, position.uri.lastIndexOf('.') );
+        position.textDocument.uri.substring(
+            position.textDocument.uri.lastIndexOf('/') + 1, position.textDocument.uri.lastIndexOf('.') );
     
     let outline : tOutline = getOutlineAt(position.position, moduleName);
 
@@ -780,7 +790,7 @@ connection.onDefinition((position : TextDocumentPosition) : Definition | Thenabl
         
             if (outline.entity.location == metainfo[moduleName].locals[index].entity.location) {
                 return {
-                    uri: position.uri,
+                    uri: position.textDocument.uri,
                     range : {
                         "start": {
                             "line": metainfo[moduleName].locals[index].range.startpos.line,
@@ -797,7 +807,7 @@ connection.onDefinition((position : TextDocumentPosition) : Definition | Thenabl
                 
         
     } else if (outline.entity.ownerName != "") {
-
+        
         let definitionReq = rp({
             method: 'GET',
             uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
@@ -807,10 +817,7 @@ connection.onDefinition((position : TextDocumentPosition) : Definition | Thenabl
             method: 'GET',
             uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName,
             json: true });
-            
-        // return repoReq
-        // .then((repoPath) => {
-
+                    
         return connection.sendRequest({ method: "getRootPath" })
         .then( (rootPath : string) => {
             let repoPath = rootPath.replace(/\\/g, '/');
@@ -839,11 +846,42 @@ connection.onDefinition((position : TextDocumentPosition) : Definition | Thenabl
         });
         
     } else {
-        return null;
+    // outline.entity a class or module
+    // Give difinition of the class, with position 0
+    
+        let contentReq = rp({
+            method: 'GET',
+            uri: url + '/api/rest/classOrModule/' + outline.name,
+            json: true });
+            
+        return connection.sendRequest({ method: "getRootPath" })
+        .then( (rootPath : string) => {
+            let repoPath = rootPath.replace(/\\/g, '/');
+            // Retrive the owner content
+            return contentReq
+        .then((response) => { 
+            fs.writeFile(repoPath + "/" + outline.name + ".gold", response["content"]);
+            
+            return {
+                uri: "file:///" + repoPath + "/" + outline.name + ".gold",
+                range : {
+                    "start": {
+                        "line": 0,
+                        "character": 0
+                    },
+                    "end": {
+                        "line": 0,
+                        "character": 0
+                    }
+                }
+            };
+        });
+        });
     }
 });
 
-connection.onReferences((param : ReferenceParams) : Location[] | Thenable<Location[]> => {
+connection.onReferences(
+    (param : ReferenceParams) : Location[] | Thenable<Location[]> => {
     
     // export interface Location {
     //     uri: string;
@@ -867,8 +905,8 @@ connection.onReferences((param : ReferenceParams) : Location[] | Thenable<Locati
     
     // Where used API
     
-    var moduleName = param.uri.substring(
-        param.uri.lastIndexOf('/') + 1, param.uri.lastIndexOf('.')
+    var moduleName = param.textDocument.uri.substring(
+        param.textDocument.uri.lastIndexOf('/') + 1, param.textDocument.uri.lastIndexOf('.')
     );
     
     let metaClass = metainfo[moduleName];
@@ -911,7 +949,8 @@ connection.onReferences((param : ReferenceParams) : Location[] | Thenable<Locati
     
 });
 
-connection.onSignatureHelp((docPosition : TextDocumentPosition) : Thenable<SignatureHelp> | SignatureHelp => {
+connection.onSignatureHelp(
+    (docPosition : TextDocumentPositionParams) : Thenable<SignatureHelp> | SignatureHelp => {
         
     // export interface ParameterInformation {
     //     /**
@@ -986,9 +1025,9 @@ connection.onSignatureHelp((docPosition : TextDocumentPosition) : Thenable<Signa
     //     activeParameter?: number;
     // }
     
-    let moduleName : string = docPosition.uri.substring(
-            docPosition.uri.lastIndexOf('/') + 1, docPosition.uri.lastIndexOf('.') );
-    var lines = documents.get(docPosition.uri).getText().split(/\r?\n/g);
+    let moduleName : string = docPosition.textDocument.uri.substring(
+            docPosition.textDocument.uri.lastIndexOf('/') + 1, docPosition.textDocument.uri.lastIndexOf('.') );
+    var lines = documents.get(docPosition.textDocument.uri).getText().split(/\r?\n/g);
     var position = docPosition.position;
     var line = lines[docPosition.position.line];
 
@@ -997,7 +1036,7 @@ connection.onSignatureHelp((docPosition : TextDocumentPosition) : Thenable<Signa
         implem: {
             name: moduleName,
             ancestor: "",
-            content: documents.get(docPosition.uri).getText()
+            content: documents.get(docPosition.textDocument.uri).getText()
         },
         lineInfo: {
             lineContent: line,
@@ -1084,6 +1123,32 @@ connection.onSignatureHelp((docPosition : TextDocumentPosition) : Thenable<Signa
         });
 });
 
+connection.onRequest({method: "getModuleDocumentation"} , 
+    (params : {"moduleName": string }) : string | Thenable<string> => {
+        if (metainfo == undefined) {
+            metainfo = [];
+        }
+        
+        if ( !(params.moduleName in metainfo) ) {
+            return updateMetaInfoForClass(params.moduleName, "")
+            .then(
+                (success) => {
+                    return createDocFileFor(params.moduleName);
+                }
+            );
+        } else {
+            return createDocFileFor(params.moduleName);
+        }
+    }
+);
+
+connection.onDocumentFormatting(
+    (params : DocumentFormattingParams) : TextEdit[] => {
+        
+        return null;
+    }
+)
+
 connection.onWorkspaceSymbol( 
     (params : WorkspaceSymbolParams) : SymbolInformation[] | Thenable<SymbolInformation[]> => 
     {
@@ -1093,6 +1158,22 @@ connection.onWorkspaceSymbol(
         //      */
         //     query: string;
         // }
+        
+        // let definitionReq = rp({
+        //     method: 'GET',
+        //     uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
+        //     json: true });
+            
+        // let contentReq = rp({
+        //     method: 'GET',
+        //     uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName,
+        //     json: true });
+                    
+        // return connection.sendRequest({ method: "getRootPath" })
+        // .then( (rootPath : string) => {
+        //     let repoPath = rootPath.replace(/\\/g, '/');
+        //     return definitionReq
+        // .then((defRange : tRange)
         
         return null;
     }

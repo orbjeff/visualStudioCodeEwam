@@ -69,20 +69,35 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 
 ## Alpha 0.2.3 - *Deliver on May 20, 2016*
 
-- [ ] Generate source code
 - [x] Timer on parse
 - [x] Class tree visualization : handle directly the "select from name" based on the currently open module
+- [x] Class documentation : improve robustness
 - [x] Go to Definition on local variables
-- [x] Polish syntaxe highlightinh
-- [ ] Class documentation : improve robustness
-- [ ] In Ctrl+Shift+O : add parent classes symbols ?
-     - => connection.onWorkspaceSymbol => metamodel browser request
+- [x] Polish syntax highlighting
+- Bug fixes
+    - [x] Too large CString assignment
+    - [x] "Go To Definition" doesn't work anymore
+    
+## Alpha 0.2.4 - *Deliver on May 27, 2016*
+
+- [ ] Generate source code
+    - [ ] Implement an API to initialize repository from TGV (?)
+    - [ ] Create git repository for our environnement
+    - [ ] Implement an API to dump bundles/deliveries/classes tree in a json file
+        - one file per bundle + one index file 
+    - [ ] Implement an API to dump a module in the source repository (e.g. in $rootPath/$Bundle/$Delivery/module.gold)
+- [x] ~~Explore file:// scheme handling with contentProviders, to lazy-load gold modules~~ Not working : *"Activating extension `mphasiswyde.ewamvscadaptor` failed: scheme 'file' already registered."*   
 - [ ] API: saves the module (ctrl+s) **even if inconsistent**
-- [ ] Bug fixes
+- [ ] MMBrowser entry point : connection.onWorkspaceSymbol => metamodel browser request
+- [ ] Improve "Find references" feature to provide position in file (use metainfo)
+- [x] Improve outline : display full path to entity
+- [x] Polish syntax highlighting : capture types in variable declarations
+- Bug fixes
     - [ ] Crash of eWam Service when using vscode
     - [ ] Outline becomes unavailable at some point (onHover not called anymore)
-    - [ ] fix item kind of suggestions
-    - [x] Too large CString assignment
+    - [ ] Integrity checking
+    - [x] fix item kind of suggestions
+    - [x] Diagnostics doesn't work anymore (reformat not working anymore either)
 
 ## Testing - *Publish on ??*
 
@@ -95,15 +110,12 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 - [ ] Symbol renaming
 - [ ] Additional code snippets
 - [ ] Review "Code Actions" feature : could be implemented using code analyzer
-- [ ] Additional validations (check repo is writable) - nicolas api
+- [ ] Additional validations (check repo is writable)
 - [ ] Other entity management (create new scenario, translation, ...)
 - [ ] Demo video (with OBS - https://obsproject.com/download)
 
 - [ ] Questions de Florian : 
-    - [ ] Fichiers virtuels ?
-    - [ ] Debugger ?
-
-## Alpha 0.9 : Pre-beta
+    - [ ] Fichiers virtuels => contentProviders? (seems to only work for read-only html previews)
 
 - [ ] Design decisions concerning source code repository location and organization
     - [ ] API repository context
@@ -111,7 +123,6 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 - [ ] Code and API re-fectoring  / architecturing / documentation
     - [ ] API proper and accurate documentation
     - [ ] API test
-    
 
 ## 2.0 supported by eWAM 6.2
 - [ ] Breakpoint management

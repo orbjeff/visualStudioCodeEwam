@@ -4,8 +4,9 @@
 
 import * as path from 'path';
 
-import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, TransportKind } from 'vscode-languageclient';
-import { languages, Diagnostic, DiagnosticSeverity } from 'vscode';
+import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, TransportKind }
+    from 'vscode-languageclient';
+import { languages, Diagnostic, DiagnosticSeverity, TextDocumentContentProvider} from 'vscode';
 
 import * as vscode from 'vscode';
 import * as axios from 'axios';
@@ -23,13 +24,11 @@ let breakPointDecorationType: vscode.TextEditorDecorationType;
 let config: vscode.WorkspaceConfiguration;
 let lastParse : number;
 
-// let diagnosticCollection = languages.createDiagnosticCollection("stuff");
-// let diagnostics : Diagnostic[] = [];
-     
 let languageClient : LanguageClient;
-
 let saving : boolean = false;
+let parsePlanned : boolean = false;
 
+let extensionContext : vscode.ExtensionContext;
 
 function setDecoForStopPoints(methods) {
 
@@ -168,26 +167,114 @@ function parse(notifyNewSource: Boolean = false, doc? : vscode.TextDocument) {
             "classname": getOpenClassName(doc),
             "source": doc.getText(),
             "notifyNewSource" : notifyNewSource,
-            "textDocument": doc
+            "uri": doc.uri.toString()
         } 
+    ).then(
+        (params: {newSource: string, docUri: string} ) => {
+            if (params.docUri == '' && params.newSource == '')
+                return;
+                
+            var editor: vscode.TextEditor = null;
+            
+            // Look for the editor we parsed
+            for (var index = 0; index < vscode.window.visibleTextEditors.length; index++) {
+                if (vscode.window.visibleTextEditors[index].document.uri.toString() === params.docUri)
+                {
+                    editor = vscode.window.visibleTextEditors[index];
+                    break;
+                }
+            }
+            
+            if (editor == null)
+                return;
+            
+            editor.edit(
+                editBuilder => {
+                    var start: vscode.Position = new vscode.Position(0, 0);
+                    var lastLine: number = editor.document.lineCount - 1;
+                    
+                    var end: vscode.Position = editor.document.lineAt(lastLine).range.end;
+                    var range: vscode.Range = new vscode.Range(start, end);
+                    
+                    editBuilder.replace(range, params.newSource);
+                    refreshUI();
+                    parseBarItem.color = 'white';
+                }
+            );
+            
+            let moduleName : string = params.docUri.substring(
+                params.docUri.lastIndexOf('/') + 1, params.docUri.lastIndexOf('.'));
+                
+            moduleDocumentationProvider.update(
+                vscode.Uri.parse('ewam://modules/' + moduleName + '/module-preview'));
+        }
     );
 }
 
 function save(notifyNewSource: Boolean = false, doc? : vscode.TextDocument) {
     
+    saving = true;
+    
     if (!doc) {
         doc  = vscode.window.activeTextEditor.document;
     }
     
-    saving = true;
     languageClient.sendRequest(
         { method: "save" },
         {
             "classname": getOpenClassName(doc),
             "source": doc.getText(),
             "notifyNewSource" : notifyNewSource,
-            "textDocument": doc
+            "uri": doc.uri.toString()
         } 
+    ).then(
+        (params: {newSource: string, docUri: string} ) => {
+            if (params.docUri == '' && params.newSource == '') {
+                saving = false;
+                return;
+            }
+            
+            let editor: vscode.TextEditor = null;
+            
+            // Look for the editor we parsed
+            for (var index = 0; index < vscode.window.visibleTextEditors.length; index++) {
+                if (vscode.window.visibleTextEditors[index].document.uri.toString() === params.docUri)
+                {
+                    editor = vscode.window.visibleTextEditors[index];
+                    break;
+                }
+            }
+            
+            if (editor == null) {
+                saving = false;
+                return;
+            }
+            
+            editor.edit(
+                editBuilder => {
+                    var start: vscode.Position = new vscode.Position(0, 0);
+                    var lastLine: number = editor.document.lineCount - 1;
+                    
+                    var end: vscode.Position = editor.document.lineAt(lastLine).range.end;
+                    var range: vscode.Range = new vscode.Range(start, end);
+                    
+                    editBuilder.replace(range, params.newSource);
+                    refreshUI();
+                    parseBarItem.color = 'white';
+                }
+            ).then((value : boolean) => {
+                editor.document.save().then(
+                    () => {
+                        saving = false;
+                    },
+                    (reason : any) => {
+                        saving = false;
+                    });
+            });
+        },
+        (reason : any) => {
+            saving = false;
+        }
     );
 }
 
@@ -221,34 +308,48 @@ function classTree() {
     
 }
 
-function classDocumentation (moduleName : string) {
-    // let uri = vscode.Uri.parse(config.get('url') + 
-    //     '/api/rest/classOrModule/' + moduleName + '/htmlDocumentation/');
+class ModuleDocumentationContentProvider implements TextDocumentContentProvider {
     
-    // vscode.workspace.rootPath
+    // onDidChange: vscode.Event<vscode.Uri>;
+    private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
+
+    provideTextDocumentContent(uri: vscode.Uri, token: vscode.CancellationToken): string | Thenable<string> {
+        let moduleName : string = uri.path.substring(
+            uri.path.indexOf('/') + 1, uri.path.lastIndexOf('/module-preview')
+        );
+        
+        return getModuleDocumentation(moduleName);
+    }
     
-    let uri = vscode.Uri.parse('file:///' + vscode.workspace.rootPath + '/' + moduleName + '.html');
-    let success = vscode.commands.executeCommand('vscode.previewHtml', uri, vscode.ViewColumn.Two);
+    get onDidChange(): vscode.Event<vscode.Uri> {
+        return this._onDidChange.event;
+    }
+    
+    public update(uri: vscode.Uri) {
+        this._onDidChange.fire(uri);
+    }
+    
+};
+
+let moduleDocumentationProvider : ModuleDocumentationContentProvider;
+
+function showModuleDocumentation (moduleName : string) : Thenable<any>{
+
+    let previewUri = vscode.Uri.parse('ewam://modules/' + moduleName + '/module-preview');
+    // let previewUri = vscode.Uri.parse('file:///' + vscode.workspace.rootPath + '/' + moduleName + '.html');
+    
+    return vscode.commands.executeCommand('vscode.previewHtml', previewUri, vscode.ViewColumn.Two)
+    .then(
+        (success) => {},
+        (reason) => { vscode.window.showErrorMessage(reason); } );
+} 
+
+function getModuleDocumentation(moduleName : string) : string | Thenable<string> {
+    return languageClient.sendRequest(
+        { "method": "getModuleDocumentation" },
+        { "moduleName": moduleName }
+    );
 }
-
-// function setDeco(errors) {
-//     // var decos = [];
-//     var activeEditor = vscode.window.activeTextEditor;
-//     for (var error of errors) {
-//         var start = new vscode.Position(error.line, 0);
-//         var doc = activeEditor.document;
-//         var line = doc.lineAt(error.line);
-//         var l = line.text.length;
-//         var end = new vscode.Position(error.line, l);
-
-//         var r = new vscode.Range(start, end);
-//         // decos.push({ range: r, hoverMessage: error.msg });
-//         diagnostics.push(new Diagnostic(r, error.msg, DiagnosticSeverity.Error));
-//     }
-    
-//     // activeEditor.setDecorations(parsingErrorDecorationType, decos);
-//     diagnosticCollection.set(activeEditor.document.uri, diagnostics);
-// }
 
 interface getScenarioCallBack { (className: string, scenarioName: string): void }
 
@@ -442,8 +543,10 @@ function run() {
 
 
 export function activate(context: vscode.ExtensionContext) {
-
+    
     console.log('"ewamvscadaptor" is now active');
+    extensionContext = context;
+    
     config = vscode.workspace.getConfiguration('ewam');
 
     // The server is implemented in node
@@ -474,75 +577,83 @@ export function activate(context: vscode.ExtensionContext) {
     languageClient = new LanguageClient('Ewam VSServer', serverOptions, clientOptions);
     
 
-    languageClient.onRequest(
-        {method: "onParseSuccessful"}, (params: {newSource: string, docUri: vscode.Uri} ) => {
-        var editor: vscode.TextEditor = null;
-        
-        // Look for the editor we parsed
-        for (var index = 0; index < vscode.window.visibleTextEditors.length; index++) {
-            if (JSON.stringify(vscode.window.visibleTextEditors[index].document.uri) === 
-                    JSON.stringify(params.docUri))
-            {
-                editor = vscode.window.visibleTextEditors[index];
-                break;
+    /*languageClient.onRequest({method: "onParseSuccessful"}, 
+        (params: {newSource: string, docUri: string} ) => {
+            var editor: vscode.TextEditor = null;
+            
+            // Look for the editor we parsed
+            for (var index = 0; index < vscode.window.visibleTextEditors.length; index++) {
+                if (vscode.window.visibleTextEditors[index].document.uri.toString() === params.docUri)
+                {
+                    editor = vscode.window.visibleTextEditors[index];
+                    break;
+                }
             }
+            
+            if (editor == null)
+                return;
+            
+            editor.edit(
+                editBuilder => {
+                    var start: vscode.Position = new vscode.Position(0, 0);
+                    var lastLine: number = editor.document.lineCount - 1;
+                    
+                    var end: vscode.Position = editor.document.lineAt(lastLine).range.end;
+                    var range: vscode.Range = new vscode.Range(start, end);
+                    
+                    editBuilder.replace(range, params.newSource);
+                    refreshUI();
+                    parseBarItem.color = 'white';
+                }
+            );
+            
+            let moduleName : string = params.docUri.substring(
+                params.docUri.lastIndexOf('/') + 1, params.docUri.lastIndexOf('.'));
+                
+            moduleDocumentationProvider.update(
+                vscode.Uri.parse('ewam://modules/' + moduleName + '/module-preview'));
         }
-        
-        if (editor == null)
-            return;
-        
-        editor.edit(
-            editBuilder => {
-                var start: vscode.Position = new vscode.Position(0, 0);
-                var lastLine: number = editor.document.lineCount - 1;
-                
-                var end: vscode.Position = editor.document.lineAt(lastLine).range.end;
-                var range: vscode.Range = new vscode.Range(start, end);
-                
-                editBuilder.replace(range, params.newSource);
-                refreshUI();
-                parseBarItem.color = 'white';
-            }
-        );
-        
-    } );
+    ); */
     
-    languageClient.onRequest({method: "onSaveSuccessful"}, (params: {newSource: string, docUri: vscode.Uri} ) => {
-        var editor: vscode.TextEditor = null;
-        
-        // Look for the editor we parsed
-        for (var index = 0; index < vscode.window.visibleTextEditors.length; index++) {
-            if (JSON.stringify(vscode.window.visibleTextEditors[index].document.uri) === 
-                    JSON.stringify(params.docUri))
-            {
-                editor = vscode.window.visibleTextEditors[index];
-                break;
+    /*languageClient.onRequest({method: "onSaveSuccessful"}, 
+        (params: {newSource: string, docUri: string} ) => {
+            var editor: vscode.TextEditor = null;
+            
+            // Look for the editor we parsed
+            for (var index = 0; index < vscode.window.visibleTextEditors.length; index++) {
+                if (vscode.window.visibleTextEditors[index].document.uri.toString() === params.docUri)
+                {
+                    editor = vscode.window.visibleTextEditors[index];
+                    break;
+                }
             }
+            
+            if (editor == null)
+                return;
+            
+            editor.edit(
+                editBuilder => {
+                    var start: vscode.Position = new vscode.Position(0, 0);
+                    var lastLine: number = editor.document.lineCount - 1;
+                    
+                    var end: vscode.Position = editor.document.lineAt(lastLine).range.end;
+                    var range: vscode.Range = new vscode.Range(start, end);
+                    
+                    editBuilder.replace(range, params.newSource);
+                    refreshUI();
+                    parseBarItem.color = 'white';
+                }
+            ).then((value : boolean) => {
+                editor.document.save();
+            });
         }
-        
-        if (editor == null)
-            return;
-        
-        editor.edit(
-            editBuilder => {
-                var start: vscode.Position = new vscode.Position(0, 0);
-                var lastLine: number = editor.document.lineCount - 1;
-                
-                var end: vscode.Position = editor.document.lineAt(lastLine).range.end;
-                var range: vscode.Range = new vscode.Range(start, end);
-                
-                editBuilder.replace(range, params.newSource);
-                refreshUI();
-                parseBarItem.color = 'white';
-            }
-        ).then((value : boolean) => {
-            editor.document.save();
-        });
-    } );
+    );*/
     
-    languageClient.onRequest({method: "getRootPath"}, (params : any) : string => {
-        return vscode.workspace.rootPath;
-    } );
+    languageClient.onRequest({method: "getRootPath"}, 
+        (params : any) : string => {
+            return vscode.workspace.rootPath;
+        }
+    );
     
     let disposable = languageClient.start();
     
@@ -561,13 +672,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     var myOutputChannel = vscode.window.createOutputChannel('eWam');
     myOutputChannel.append('eWam plugin started');
-
-
+    
     disposable = vscode.commands.registerCommand('ewam.openEntity', function() {
         searchClass(openClass);
     });
     context.subscriptions.push(disposable);
-
+    
     disposable = vscode.commands.registerCommand('ewam.checkIn', function() {
         checkInClass(getOpenClassName());
     });
@@ -615,13 +725,13 @@ export function activate(context: vscode.ExtensionContext) {
         classTree();
     });
     context.subscriptions.push(disposable);
-    disposable = vscode.commands.registerCommand('ewam.previewDoc', function() {
+    disposable = vscode.commands.registerCommand('ewam.showModuleDocumentation', function() {
         let docPath = vscode.window.activeTextEditor.document.uri.path;
         var className = docPath.substring(
             docPath.lastIndexOf('/') + 1, docPath.lastIndexOf('.')
         );
         
-        classDocumentation(className);
+        return showModuleDocumentation(className);
     });
     context.subscriptions.push(disposable);
     
@@ -690,7 +800,25 @@ export function activate(context: vscode.ExtensionContext) {
             // console.log('opened document');
             if (event.document.languageId == "gold") {
                 // console.log('... a Gold document !');
-                parse(false, event.document);
+                let now : number = new Date().getTime();
+                
+                if (parsePlanned)
+                    return;
+                
+                if (lastParse == undefined || now - lastParse > 1000) {
+                    parse(false, event.document);
+                    lastParse = now;
+                } else {
+                    setTimeout(
+                        () => {
+                            parse(false, event.document);
+                            parsePlanned = false;
+                            lastParse = now;
+                        },
+                        1000
+                    );
+                    parsePlanned = true;
+                }
             }
         }
     );
@@ -712,10 +840,7 @@ export function activate(context: vscode.ExtensionContext) {
             console.log('opened document ' + document.fileName + '\n');
             if (document.languageId == "gold") {
                 // console.log('... a Gold document !');
-                if ((new Date()).getTime() - lastParse > 1000) {    
-                    parse(false, document);
-                    lastParse = (new Date()).getTime();
-                }
+                parse(false, document);
             }
         }
     );
@@ -732,6 +857,8 @@ export function activate(context: vscode.ExtensionContext) {
     
     vscode.languages.setLanguageConfiguration("gold", {"comments": { "lineComment": ";" } } );
     
+    moduleDocumentationProvider = new ModuleDocumentationContentProvider();
+    let registration = vscode.workspace.registerTextDocumentContentProvider('ewam', moduleDocumentationProvider);
     
     disposable = vscode.window.setStatusBarMessage('Ready');
     context.subscriptions.push(disposable);
