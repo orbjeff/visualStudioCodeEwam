@@ -23,11 +23,9 @@ let parsingErrorDecorationType: vscode.TextEditorDecorationType;
 let breakPointDecorationType: vscode.TextEditorDecorationType;
 let config: vscode.WorkspaceConfiguration;
 let lastParse : number;
-
 let languageClient : LanguageClient;
 let saving : boolean = false;
 let parsePlanned : boolean = false;
-
 let extensionContext : vscode.ExtensionContext;
 
 function setDecoForStopPoints(methods) {

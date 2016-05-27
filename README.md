@@ -91,8 +91,14 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
         - one file per bundle + one index file with
             - project hierarchy
             - dependencies hierarchy
+    - [ ] Implement an API to get the pathof a module in the source repository (e.g. in $rootPath/$Bundle/$Delivery/module.gold)
+    - [ ] Implement an API to get the bundle/delivery of a module
     - [ ] Implement an API to dump a module in the source repository (e.g. in $rootPath/$Bundle/$Delivery/module.gold)
     - [ ] Create git repository for our environnement
+    - Review plugin to account for these changes :
+        - [ ] on the fly HTML documentation production (paths provided in the documentation links)
+        - [ ] path where the file of a module is retrieved when opening
+        - [ ] path where the file of a module is stored when saving 
 - [x] ~~Explore file:// scheme handling with contentProviders, to lazy-load gold modules~~ Not working : *"Activating extension `mphasiswyde.ewamvscadaptor` failed: scheme 'file' already registered."*   
 - [ ] API: saves the module (ctrl+s) **even if inconsistent**
 - [x] MMBrowser entry point : connection.onWorkspaceSymbol => metamodel browser request

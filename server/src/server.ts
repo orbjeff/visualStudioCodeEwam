@@ -75,130 +75,31 @@ interface EwamSettings {
     url: string;
 }
 
-// hold the maxNumberOfProblems setting
-let url: string;
-// The settings have changed. Is send on server activation
-// as well.
-connection.onDidChangeConfiguration((change) => {
-    let settings = <Settings>change.settings;
-    url = settings.ewam.url || 'http://localhost:8082/';
-    // Revalidate any open text documents
-    documents.all().forEach(validateTextDocument);
-});
-
-function validateTextDocument(textDocument: TextDocument): void {
-    let diagnostics: Diagnostic[] = [];
-    let lines = textDocument.getText().split(/\r?\n/g);
-    let problems = 0;
-    let maxNumberOfProblems = 100;
-    for (var i = 0; i < lines.length && problems < maxNumberOfProblems; i++) {
-        let line = lines[i];
-        let index = line.indexOf('typescript');
-        if (index >= 0) {
-            problems++;
-            diagnostics.push({
-                severity: DiagnosticSeverity.Warning,
-                range: {
-                    start: { line: i, character: index },
-                    end: { line: i, character: index + 10 }
-                },
-                message: `${line.substr(index, 10)} should be spelled TypeScript`
-            });
-        }
-    }
-    // Send the computed diagnostics to VSCode.
-    connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-}
-
-connection.onDidChangeWatchedFiles((change) => {
-    // Monitored files have change in VSCode
-    connection.console.log('We received an file change event');
-});
-
-function transform(response:CompletionList): CompletionList {
-    
-    for (var item of response.items){
-        if (item["name"] != undefined)
-             item["label"]=item["name"];
-    }
-    
-    return response;
-}
-
-// This handler provides the initial list of the completion items.
-connection.onCompletion(
-    (textDocumentPosition: TextDocumentPositionParams) : Thenable<CompletionList> => {
-   
-    var lines = documents.get(textDocumentPosition.textDocument.uri).getText().split(/\r?\n/g);
-
-    var position = textDocumentPosition.position;
-    var line = lines[position.line];
-    var className = textDocumentPosition.textDocument.uri.substring(
-        textDocumentPosition.textDocument.uri.lastIndexOf('/') + 1, textDocumentPosition.textDocument.uri.lastIndexOf('.')
-    );
-    
-    var body = {
-        implem: {
-            name: className,
-            ancestor: "",
-            content: documents.get(textDocumentPosition.textDocument.uri).getText()
-        },
-        lineInfo: {
-            lineContent: line,
-            lineNumber: position.line,
-            columnNumber: position.character
-        }
-    };
-
-   var _rp = rp(
-       {    
-           method: 'POST',
-           uri: url + '/aMRS_ActiveModelService/suggest', 
-           json: true,
-           body: {body: body}
-        });
-    
-    return _rp.then( (response) => {
-        return transform(response);
-    });
- 
-});
-
-/*
-connection.onDidOpenTextDocument((params) => {
-	// A text document got opened in VSCode.
-	// params.uri uniquely identifies the document. For documents store on disk this is a file URI.
-	// params.text the initial full content of the document.
-	connection.console.log(`${params.uri} opened.`);
-});
-
-connection.onDidChangeTextDocument((params) => {
-	// The content of a text document did change in VSCode.
-	// params.uri uniquely identifies the document.
-	// params.contentChanges describe the content changes to the document.
-	connection.console.log(`${params.uri} changed: ${JSON.stringify(params.contentChanges)}`);
-});
-
-connection.onDidCloseTextDocument((params) => {
-	// A text document got closed in VSCode.
-	// params.uri uniquely identifies the document.
-	connection.console.log(`${params.uri} closed.`);
-});
-*/
-
 interface tPositionRange {
     line : number,
     column : number
 }
 
+interface tCompletionList {
+    isComplete : boolean,
+    items : tCompletionItem[]
+}
+
+interface tCompletionItem {
+    name : string,
+    documentation : string,
+    detail : string,
+    insertText : string,
+    entity : tEntity
+}
+
 interface tEntity {
-    label: string,
-    name: string,
-    ownerName: string,
-    theType: string,
-    location: string,
-    description: string,
-    kind: number
+    label : string,
+    ownerName : string,
+    exactType : string,
+    baseType : string,
+    location : string,
+    description : string
 }
 
 interface tOutlineRange {
@@ -212,7 +113,6 @@ interface tOutline {
     produceGold : string,
     documentation : string,
     name : string,
-    kind : number,
     entity: tEntity
 }
 
@@ -290,7 +190,126 @@ let metainfo : tMetaInfo[];
 let ewamPath : string;
 let workPath : string; 
 
-function createDocFileFor(className) : Thenable<string> {
+// hold the maxNumberOfProblems setting
+let url: string;
+// The settings have changed. Is send on server activation
+// as well.
+connection.onDidChangeConfiguration((change) => {
+    let settings = <Settings>change.settings;
+    url = settings.ewam.url || 'http://localhost:8082/';
+    // Revalidate any open text documents
+    documents.all().forEach(validateTextDocument);
+});
+
+function validateTextDocument(textDocument: TextDocument): void {
+    let diagnostics: Diagnostic[] = [];
+    let lines = textDocument.getText().split(/\r?\n/g);
+    let problems = 0;
+    let maxNumberOfProblems = 100;
+    for (var i = 0; i < lines.length && problems < maxNumberOfProblems; i++) {
+        let line = lines[i];
+        let index = line.indexOf('typescript');
+        if (index >= 0) {
+            problems++;
+            diagnostics.push({
+                severity: DiagnosticSeverity.Warning,
+                range: {
+                    start: { line: i, character: index },
+                    end: { line: i, character: index + 10 }
+                },
+                message: `${line.substr(index, 10)} should be spelled TypeScript`
+            });
+        }
+    }
+    // Send the computed diagnostics to VSCode.
+    connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+}
+
+connection.onDidChangeWatchedFiles((change) => {
+    // Monitored files have change in VSCode
+    connection.console.log('We received an file change event');
+});
+
+// function transform(response:CompletionList): CompletionList {
+    
+//     for (var item of response.items){
+//         if ("name" in item) {
+//             item["label"] = item["name"];
+//         } else if ("label" in item) {
+//             item["name"] = item["label"];
+//         }
+//     }
+    
+//     return response;
+// }
+
+// This handler provides the initial list of the completion items.
+connection.onCompletion(
+    (textDocumentPosition: TextDocumentPositionParams) : Thenable<CompletionList> => {
+   
+    var lines = documents.get(textDocumentPosition.textDocument.uri).getText().split(/\r?\n/g);
+
+    var position = textDocumentPosition.position;
+    var line = lines[position.line];
+    var className = textDocumentPosition.textDocument.uri.substring(
+        textDocumentPosition.textDocument.uri.lastIndexOf('/') + 1, textDocumentPosition.textDocument.uri.lastIndexOf('.')
+    );
+    
+    var body = {
+        implem: {
+            name: className,
+            ancestor: "",
+            content: documents.get(textDocumentPosition.textDocument.uri).getText()
+        },
+        lineInfo: {
+            lineContent: line,
+            lineNumber: position.line,
+            columnNumber: position.character
+        }
+    };
+    
+   var _rp = rp(
+       {    
+           method: 'POST',
+        //    uri: url + '/aMRS_ActiveModelService/suggest',
+           uri: url + '/api/rest/classOrModule/' + className + '/suggest', 
+           json: true,
+           body: body
+        });
+    
+    return _rp.then( (response : tCompletionList) => {
+        
+        for (let index : number = 0; index < response.items.length; index++) {
+            response.items[index]["kind"] = getCompletionKindFromEntityClass(response.items[index].entity.baseType);
+        }
+        return response;
+    });
+ 
+});
+
+/*
+connection.onDidOpenTextDocument((params) => {
+	// A text document got opened in VSCode.
+	// params.uri uniquely identifies the document. For documents store on disk this is a file URI.
+	// params.text the initial full content of the document.
+	connection.console.log(`${params.uri} opened.`);
+});
+
+connection.onDidChangeTextDocument((params) => {
+	// The content of a text document did change in VSCode.
+	// params.uri uniquely identifies the document.
+	// params.contentChanges describe the content changes to the document.
+	connection.console.log(`${params.uri} changed: ${JSON.stringify(params.contentChanges)}`);
+});
+
+connection.onDidCloseTextDocument((params) => {
+	// A text document got closed in VSCode.
+	// params.uri uniquely identifies the document.
+	connection.console.log(`${params.uri} closed.`);
+});
+*/
+
+function getHtmlDocFor(className) : Thenable<string> {
     
     return connection.sendRequest({ method: "getRootPath" })
     .then( (rootPath : string) => {
@@ -347,7 +366,7 @@ function createDocFileFor(className) : Thenable<string> {
         content += '  </body>\n';
         content += '</html>\n';
         
-        fs.writeFile(fileName, content);
+        // fs.writeFile(fileName, content);
         return content;
     });
 }
@@ -383,7 +402,7 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
             metainfo = [];
         }
         metainfo[classname] = response;
-        return createDocFileFor(classname)
+        return getHtmlDocFor(classname)
     .then( (result : string) => {
         connection.console.log('Successfully updated meta-information. \n' + response);
         return metainfo[classname];
@@ -756,7 +775,7 @@ connection.onDefinition(
         
     // outline.entity is defined in a class or module
     // Get definition position inside the owner
-    if (outline.entity.theType == "aLocalVarDesc") {
+    if (outline.entity.exactType == "aLocalVarDesc") {
         
         let definitionReq = rp({
             method: 'GET',
@@ -1111,11 +1130,11 @@ connection.onRequest({method: "getModuleDocumentation"} ,
             return updateMetaInfoForClass(params.moduleName, "")
             .then(
                 (success) => {
-                    return createDocFileFor(params.moduleName);
+                    return getHtmlDocFor(params.moduleName);
                 }
             );
         } else {
-            return createDocFileFor(params.moduleName);
+            return getHtmlDocFor(params.moduleName);
         }
     }
 );
@@ -1127,6 +1146,51 @@ connection.onDocumentFormatting(
     }
 )
 
+
+/* Improve getSymbolKindFromEntityClass and getCompletionKindFromEntityClass using this : 
+
+    function EntityClassToKind(theEntity : aEntity) return Int1
+    uses aVarDesc, aConstDesc, aSubRangeType, aBooleanType, aSetType, aRecordVarDesc, 
+        aMethodDesc, aClassDef, aScenario
+    
+    var theType : aType
+    
+    if member(theEntity, aMethodDesc)
+        if Upcase(theEntity.Name) = 'INIT'
+            _Result = 4
+        elseif aMethodDesc(theEntity).GetResultingType = Nil
+            ;_Result = 2 ;<= produces a strange icon in vscode for suggestions
+            _Result = 3
+        else
+            _Result = 3
+        endIf
+    elseif member(theEntity, aRecordVarDesc)
+        _Result = 5
+    elseif member(theEntity, aVarDesc)
+        theType = aVarDesc(theEntity).GetIdentifierType
+        if theType.KindofType in [kListOfInstances, kPointer, kInstance, kFloatingListOfReftos, 
+            kRefTo, kListOfRefTos]
+            _Result = 18
+        elseif member(theType, aSubRangeType) or member(theType, aBooleanType) or member(theType, 
+            aSetType)
+            _Result = 13
+        else
+            _Result = 6
+        endIf
+    elseif member(theEntity, aClassDef)
+        _Result = 7
+    elseif member(theEntity, aModuleDef)
+        _Result = 9
+    elseif member(theEntity, aConstDesc)
+        _Result = 12
+    elseif member(theEntity, aScenario)
+        _Result = 8
+    else
+        _Result = 1
+    endIf
+    endFunc
+
+ */
 
 function getSymbolKindFromEntityClass(entityClass : string) : number {
     
@@ -1157,31 +1221,37 @@ function getSymbolKindFromEntityClass(entityClass : string) : number {
     let result : number = -1;
     
     switch(entityClass) {
-        case "aMethodDesc":
+        case "method":
             result = SymbolKind.Method;
             break;
-        case "aInstanceVarDesc":
+        case "function":
+            result = SymbolKind.Function;
+            break;
+        case "variable":
             result = SymbolKind.Variable;
             break;
-        case "aModuleDef":
+        case "field":
+            result = SymbolKind.Field;
+            break;
+        case "module":
             result = SymbolKind.Module;
             break;
-        case "aClassDef":
+        case "class":
             result = SymbolKind.Class;
             break;
-        case "aConstVarDesc":
+        case "constant":
             result = SymbolKind.Constant;
             break;
-        case "aEnumVarDesc":
+        case "enum":
             result = SymbolKind.Enum;
             break;
+        case "other":
         default:
             result = SymbolKind.Namespace;
             break;
     }
     
     return result;
-    
 }
 
 function getCompletionKindFromEntityClass(entityClass : string) : number {
@@ -1213,31 +1283,42 @@ function getCompletionKindFromEntityClass(entityClass : string) : number {
     let result : number = -1;
     
     switch(entityClass) {
-        case "aMethodDesc":
-            result = CompletionItemKind.Method;
+        case "method":
+            // CompletionItemKind.Method seems to give a strange icon in suggestions...
+            // result = CompletionItemKind.Method;
+            result = CompletionItemKind.Function;
             break;
-        case "aInstanceVarDesc":
+        case "function":
+            result = CompletionItemKind.Function;
+            break;
+        case "variable":
             result = CompletionItemKind.Variable;
             break;
-        case "aModuleDef":
+        case "field":
+            result = CompletionItemKind.Field;
+            break;
+        case "module":
             result = CompletionItemKind.Module;
             break;
-        case "aClassDef":
+        case "class":
             result = CompletionItemKind.Class;
             break;
-        case "aConstVarDesc":
+        case "constant":
             result = CompletionItemKind.Value;
             break;
-        case "aEnumVarDesc":
+        case "enum":
             result = CompletionItemKind.Enum;
             break;
+        case "reference":
+            result = CompletionItemKind.Reference
+            break;
+        case "other":
         default:
             result = CompletionItemKind.Keyword;
             break;
     }
     
     return result;
-    
 }
 
 connection.onWorkspaceSymbol( 
@@ -1327,7 +1408,7 @@ connection.onWorkspaceSymbol(
             for (let index : number = 0; index < entities.length; index++ ) {
                 let entity : tEntity = entities[index];
                 
-                if (entity.theType == "aModuleDef" || entity.theType == "aClassDef") { 
+                if (entity.exactType == "aModuleDef" || entity.exactType == "aClassDef") { 
                     fileName = rootPath.replace(/\\/g, '/') + '/' + entity.label + '.gold';
                 } else {
                     fileName = rootPath.replace(/\\/g, '/') + '/' + entity.ownerName + '.gold';
@@ -1335,7 +1416,7 @@ connection.onWorkspaceSymbol(
                 
                 let symbol : SymbolInformation = {
                     "name": entity.label,
-                    "kind": getSymbolKindFromEntityClass(entity.theType),
+                    "kind": getSymbolKindFromEntityClass(entity.baseType),
                     "containerName": entity.ownerName,
                     "location": {
                         "uri": "file:///" + fileName,
