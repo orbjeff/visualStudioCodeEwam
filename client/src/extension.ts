@@ -6,7 +6,7 @@ import * as path from 'path';
 
 import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, TransportKind }
     from 'vscode-languageclient';
-import { languages, Diagnostic, DiagnosticSeverity, TextDocumentContentProvider} from 'vscode';
+import { languages, Diagnostic, DiagnosticSeverity, TextDocumentContentProvider } from 'vscode';
 
 import * as vscode from 'vscode';
 import * as axios from 'axios';
@@ -572,7 +572,7 @@ export function activate(context: vscode.ExtensionContext) {
             fileEvents: vscode.workspace.createFileSystemWatcher('**/.gold')
         }
     }
-
+    
     // Create the language client and start the client.
     languageClient = new LanguageClient('Ewam VSServer', serverOptions, clientOptions);
     
@@ -735,14 +735,12 @@ export function activate(context: vscode.ExtensionContext) {
     });
     context.subscriptions.push(disposable);
     
-
-
     parseBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     parseBarItem.text = '$(beaker) Parse'
     parseBarItem.tooltip = 'Parse class';
     parseBarItem.command = 'ewam.parse';
     parseBarItem.show();
-
+    
     classtreeBarItemMain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
     classtreeBarItemMain.text = '$(clippy) Class Tree'
     classtreeBarItemMain.tooltip = 'Show Class Tree';
@@ -754,47 +752,47 @@ export function activate(context: vscode.ExtensionContext) {
     statusBarItemMain.tooltip = 'Open entity';
     statusBarItemMain.command = 'ewam.openEntity';
     statusBarItemMain.show();
-
+    
     statusBarItemMain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     statusBarItemMain.text = '$(info) Class Info'
     statusBarItemMain.tooltip = 'Metamodel information';
     statusBarItemMain.command = 'ewam.metaInfo';
     statusBarItemMain.show();
-
+    
     checkOutBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     checkOutBarItem.text = '$(cloud-download) Check Out'
     checkOutBarItem.tooltip = 'Check out';
     checkOutBarItem.command = 'ewam.checkOut';
-
+    
     checkInBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     checkInBarItem.text = '$(cloud-upload) Check In'
     checkInBarItem.tooltip = 'Check in Class';
     checkInBarItem.command = 'ewam.checkIn';
-
+    
     reimplemBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     reimplemBarItem.text = '$(jersey) Reimplem'
     reimplemBarItem.tooltip = 'Reimplem';
     reimplemBarItem.command = 'ewam.reimplem';
-
+    
     reimplemBarItem.show();
-
+    
     statusBarItemMain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 1);
     statusBarItemMain.text = '$(plus) New Class'
     statusBarItemMain.tooltip = 'New Class';
     statusBarItemMain.command = 'ewam.newClass';
     statusBarItemMain.show();
-
+    
     statusBarItemMain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
     statusBarItemMain.text = '$(triangle-right) Run'
     statusBarItemMain.tooltip = 'Run Application';
     statusBarItemMain.command = 'ewam.run';
     statusBarItemMain.show();
-
+    
     scenarioBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     scenarioBarItem.text = '$(hubot) Scenarios'
     scenarioBarItem.tooltip = 'Edit scenarios';
     scenarioBarItem.command = 'ewam.scenario';
-
+    
     vscode.workspace.onDidChangeTextDocument(
         (event : vscode.TextDocumentChangeEvent) => {
             // console.log('opened document');

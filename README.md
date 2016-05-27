@@ -78,26 +78,34 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
     - [x] Too large CString assignment
     - [x] "Go To Definition" doesn't work anymore
     
-## Alpha 0.2.4 - *Deliver on May 27, 2016*
+## Alpha 0.2.4 - *Deliver on June 10, 2016*
 
 - [ ] Generate source code
-    - [ ] Implement an API to initialize repository from TGV (?)
-    - [ ] Create git repository for our environnement
-    - [ ] Implement an API to dump bundles/deliveries/classes tree in a json file
-        - one file per bundle + one index file 
+    - [ ] Implement code to create a JSON index file containing the description of the repository, based on
+        - installed bundles as dependencies
+        - prepared bundles as current project
+        Ultimately, this file will also provide a list of dependencies to other products, that could idealy be pulled from a centralized package management system.
+        Hint: create generic code that builds a record object with these information, that can either be used from a API to be returned through http, or be serialized as json to be dumped in a file. And implement that second tool.
+    - [ ] Implement an API to create a JSON package description file for a bundle, describing it's deliveries/classes/modules/everything content and hierarchy
+    - [ ] Implement an API to initialize repository based on the index file
+        - one file per bundle + one index file with
+            - project hierarchy
+            - dependencies hierarchy
     - [ ] Implement an API to dump a module in the source repository (e.g. in $rootPath/$Bundle/$Delivery/module.gold)
+    - [ ] Create git repository for our environnement
 - [x] ~~Explore file:// scheme handling with contentProviders, to lazy-load gold modules~~ Not working : *"Activating extension `mphasiswyde.ewamvscadaptor` failed: scheme 'file' already registered."*   
 - [ ] API: saves the module (ctrl+s) **even if inconsistent**
-- [ ] MMBrowser entry point : connection.onWorkspaceSymbol => metamodel browser request
+- [x] MMBrowser entry point : connection.onWorkspaceSymbol => metamodel browser request
 - [ ] Improve "Find references" feature to provide position in file (use metainfo)
 - [x] Improve outline : display full path to entity
 - [x] Polish syntax highlighting : capture types in variable declarations
-- Bug fixes
+- Bug fixes and ergonomy
     - [ ] Crash of eWam Service when using vscode
     - [ ] Outline becomes unavailable at some point (onHover not called anymore)
     - [ ] Integrity checking
     - [x] fix item kind of suggestions
     - [x] Diagnostics doesn't work anymore (reformat not working anymore either)
+    - [ ] Improve overall usability
 
 ## Testing - *Publish on ??*
 

@@ -11,11 +11,10 @@ import {
     InitializeParams, InitializeResult, TextDocumentPositionParams,
     CompletionItem, CompletionItemKind, CompletionList, Hover, CodeActionParams, Command,
     SymbolInformation, ReferenceParams, Position, SignatureHelp, ParameterInformation, 
-    SignatureInformation, Range, RenameParams, WorkspaceSymbolParams, DocumentFormattingParams, TextEdit
+    SignatureInformation, Range, RenameParams, WorkspaceSymbolParams, DocumentFormattingParams,
+    TextEdit, Location, Definition, SymbolKind
 } from 'vscode-languageserver';
 
-import { Definition, Location } from 'vscode';
-// import * as vscode from 'vscode';
 import * as rp from 'request-promise';
 import * as fs from 'fs';
 
@@ -47,6 +46,7 @@ connection.onInitialize(
                 },
                 hoverProvider: true,
                 documentSymbolProvider : true,
+                workspaceSymbolProvider : true,
                 signatureHelpProvider : { triggerCharacters : [ "(", ",", "." ] },
                 definitionProvider : true,
                 referencesProvider : true,
@@ -197,7 +197,8 @@ interface tEntity {
     ownerName: string,
     theType: string,
     location: string,
-    description: string
+    description: string,
+    kind: number
 }
 
 interface tOutlineRange {
@@ -353,16 +354,16 @@ function createDocFileFor(className) : Thenable<string> {
 
 function updateMetaInfoForClass(classname : string, source : string) : Thenable<tMetaInfo> {
 
-    var _rp = rp(
-    {
-        method: 'GET',
-        uri: url + '/api/rest/repository/path', 
-        json: true
-    });
+    // var _rp = rp(
+    // {
+    //     method: 'GET',
+    //     uri: url + '/api/rest/repository/path', 
+    //     json: true
+    // });
     
-    _rp.then( (response) => {
-        ewamPath = response._Result;
-    });
+    // _rp.then( (response) => {
+    //     ewamPath = response._Result;
+    // });
     
     var _rp = rp(
     {
@@ -378,11 +379,11 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
     
     return _rp
     .then( (response) => {
-            if (metainfo == undefined) {
-                metainfo = [];
-            }
-            metainfo[classname] = response;
-            return createDocFileFor(classname)
+        if (metainfo == undefined) {
+            metainfo = [];
+        }
+        metainfo[classname] = response;
+        return createDocFileFor(classname)
     .then( (result : string) => {
         connection.console.log('Successfully updated meta-information. \n' + response);
         return metainfo[classname];
@@ -606,36 +607,13 @@ connection.onRequest({method: "save"} ,
     });
 });
 
-/*
-    ;VS CODE enum CompletionItemKind {
-    ;    Text = 1,
-    ;    Method = 2,
-    ;    Function = 3,
-    ;    Constructor = 4,
-    ;    Field = 5,
-    ;    Variable = 6,
-    ;    Class = 7,
-    ;    Interface = 8,
-    ;    Module = 9,
-    ;    Property = 10,
-    ;    Unit = 11,
-    ;    Value = 12,
-    ;    Enum = 13,
-    ;    Keyword = 14,
-    ;    Snippet = 15,
-    ;    Color = 16,
-    ;    File = 17,
-    ;    Reference = 18,
-    ;}
-*/
-
 function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] {
     let result : SymbolInformation[] = [];
 
     for (var index = 0; index < metainfo[className].variables.length; index++) {
         result.push({
             "name": metainfo[className].variables[index].name + " : " + metainfo[className].variables[index].variableType,
-            "kind": 5,
+            "kind": getCompletionKindFromEntityClass(metainfo[className].variables[index].entity.theType),
             "location": {
                 "uri": uri,
                 "range": {
@@ -667,7 +645,7 @@ function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] 
         
         result.push({
             "name": metainfo[className].methods[index].name + '(' + parameters + ')',
-            "kind": 2,
+            "kind": getCompletionKindFromEntityClass(metainfo[className].methods[index].entity.theType),
             "location": {
                 "uri": uri,
                 "range": {
@@ -688,7 +666,7 @@ function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] 
     for (var index = 0; index < metainfo[className].types.length; index++) {
         result.push({
             "name": metainfo[className].types[index].name,
-            "kind": 13,
+            "kind": getCompletionKindFromEntityClass(metainfo[className].types[index].entity.theType),
             "location": {
                 "uri": uri,
                 "range": {
@@ -1149,6 +1127,119 @@ connection.onDocumentFormatting(
     }
 )
 
+
+function getSymbolKindFromEntityClass(entityClass : string) : number {
+    
+    // /**
+    //  * A symbol kind.
+    //  */
+    // export declare enum SymbolKind {
+    //     File = 1,
+    //     Module = 2,
+    //     Namespace = 3,
+    //     Package = 4,
+    //     Class = 5,
+    //     Method = 6,
+    //     Property = 7,
+    //     Field = 8,
+    //     Constructor = 9,
+    //     Enum = 10,
+    //     Interface = 11,
+    //     Function = 12,
+    //     Variable = 13,
+    //     Constant = 14,
+    //     String = 15,
+    //     Number = 16,
+    //     Boolean = 17,
+    //     Array = 18,
+    // }
+    
+    let result : number = -1;
+    
+    switch(entityClass) {
+        case "aMethodDesc":
+            result = SymbolKind.Method;
+            break;
+        case "aInstanceVarDesc":
+            result = SymbolKind.Variable;
+            break;
+        case "aModuleDef":
+            result = SymbolKind.Module;
+            break;
+        case "aClassDef":
+            result = SymbolKind.Class;
+            break;
+        case "aConstVarDesc":
+            result = SymbolKind.Constant;
+            break;
+        case "aEnumVarDesc":
+            result = SymbolKind.Enum;
+            break;
+        default:
+            result = SymbolKind.Namespace;
+            break;
+    }
+    
+    return result;
+    
+}
+
+function getCompletionKindFromEntityClass(entityClass : string) : number {
+    
+    // /**
+    //  * The kind of a completion entry.
+    //  */
+    // export declare enum CompletionItemKind {
+    //     Text = 1,
+    //     Method = 2,
+    //     Function = 3,
+    //     Constructor = 4,
+    //     Field = 5,
+    //     Variable = 6,
+    //     Class = 7,
+    //     Interface = 8,
+    //     Module = 9,
+    //     Property = 10,
+    //     Unit = 11,
+    //     Value = 12,
+    //     Enum = 13,
+    //     Keyword = 14,
+    //     Snippet = 15,
+    //     Color = 16,
+    //     File = 17,
+    //     Reference = 18,
+    // }
+    
+    let result : number = -1;
+    
+    switch(entityClass) {
+        case "aMethodDesc":
+            result = CompletionItemKind.Method;
+            break;
+        case "aInstanceVarDesc":
+            result = CompletionItemKind.Variable;
+            break;
+        case "aModuleDef":
+            result = CompletionItemKind.Module;
+            break;
+        case "aClassDef":
+            result = CompletionItemKind.Class;
+            break;
+        case "aConstVarDesc":
+            result = CompletionItemKind.Value;
+            break;
+        case "aEnumVarDesc":
+            result = CompletionItemKind.Enum;
+            break;
+        default:
+            result = CompletionItemKind.Keyword;
+            break;
+    }
+    
+    return result;
+    
+}
+
 connection.onWorkspaceSymbol( 
     (params : WorkspaceSymbolParams) : SymbolInformation[] | Thenable<SymbolInformation[]> => 
     {
@@ -1159,23 +1250,115 @@ connection.onWorkspaceSymbol(
         //     query: string;
         // }
         
-        // let definitionReq = rp({
-        //     method: 'GET',
-        //     uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
-        //     json: true });
-            
-        // let contentReq = rp({
-        //     method: 'GET',
-        //     uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName,
-        //     json: true });
-                    
-        // return connection.sendRequest({ method: "getRootPath" })
-        // .then( (rootPath : string) => {
-        //     let repoPath = rootPath.replace(/\\/g, '/');
-        //     return definitionReq
-        // .then((defRange : tRange)
+        // /**
+        //  * Represents information about programming constructs like variables, classes,
+        //  * interfaces etc.
+        //  */
+        // export interface SymbolInformation {
+        //     /**
+        //      * The name of this symbol.
+        //      */
+        //     name: string;
+        //     /**
+        //      * The kind of this symbol.
+        //      */
+        //     kind: number;
+        //     /**
+        //      * The location of this symbol.
+        //      */
+        //     location: Location;
+        //     /**
+        //      * The name of the symbol containing this symbol.
+        //      */
+        //     containerName?: string;
+        // }
         
-        return null;
+        // /**
+        //  * Represents a location inside a resource, such as a line
+        //  * inside a text file.
+        //  */
+        // export interface Location {
+        //     uri: string;
+        //     range: Range;
+        // }
+        
+        // /**
+        //  * A range in a text document expressed as (zero-based) start and end positions.
+        //  */
+        // export interface Range {
+        //     /**
+        //      * The range's start position
+        //      */
+        //     start: Position;
+        //     /**
+        //      * The range's end position
+        //      */
+        //     end: Position;
+        // }
+
+        // /**
+        //  * Position in a text document expressed as zero-based line and character offset.
+        //  */
+        // export interface Position {
+        //     /**
+        //      * Line position in a document (zero-based).
+        //      */
+        //     line: number;
+        //     /**
+        //      * Character offset on a line in a document (zero-based).
+        //      */
+        //     character: number;
+        // }
+        
+        let contentReq = rp({
+            method: 'GET',
+            uri: url + '/api/rest/searchEntities?q=' + params.query,
+            json: true });
+        
+        return contentReq
+        .then( (entities : tEntity[]) => {
+            
+        return connection.sendRequest({ method: "getRootPath" })
+        .then( (rootPath : string) => {
+            
+            let fileName : string = "";
+            let symbols : SymbolInformation[] = [];
+            
+            for (let index : number = 0; index < entities.length; index++ ) {
+                let entity : tEntity = entities[index];
+                
+                if (entity.theType == "aModuleDef" || entity.theType == "aClassDef") { 
+                    fileName = rootPath.replace(/\\/g, '/') + '/' + entity.label + '.gold';
+                } else {
+                    fileName = rootPath.replace(/\\/g, '/') + '/' + entity.ownerName + '.gold';
+                }
+                
+                let symbol : SymbolInformation = {
+                    "name": entity.label,
+                    "kind": getSymbolKindFromEntityClass(entity.theType),
+                    "containerName": entity.ownerName,
+                    "location": {
+                        "uri": "file:///" + fileName,
+                        "range": {
+                            "start": {
+                                "line": 0,
+                                "character": 0
+                            },
+                            "end": {
+                                "line": 0,
+                                "character": 0
+                            }
+                        } 
+                    }
+                }
+                
+                symbols.push(symbol);
+            };
+            
+            return symbols;
+        });
+            
+        });
     }
 );
 
