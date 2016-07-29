@@ -78,9 +78,9 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
     - [x] Too large CString assignment
     - [x] "Go To Definition" doesn't work anymore
     
-## Alpha 0.2.4 - *Deliver on June 17, 2016*
+## Alpha 0.2.4 - *Deliver on July 29, 2016*
 
-- [ ] Source code management
+- [x] Source code management
     - [x] JSON package index file : description of the repository  
     - [x] bundle JSON package : description file for a bundle, describing it's deliveries/classes/modules/everything content and hierarchy and **it's URL !**
     - [x] Dump repository from integrator env, based on bundles (+produce associated index and package files)
@@ -106,12 +106,8 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 > Execution of POST '/repository/buildDependenciesRepo'...Done  -- 295.181000 seconds.
 ```
 
-## Testing - *Publish on ??*
+Additional tasks :
 
-- [ ] Verify compatibility 6.1 / 6.1.5 (test multi user) - seb
-
-## Remaining tasks before POC release
-    
 - [x] Create git repository for our environnement
 - [x] ~~Explore file:// scheme handling with contentProviders, to lazy-load gold modules~~ Not working : *"Activating extension `mphasiswyde.ewamvscadaptor` failed: scheme 'file' already registered."*
 - [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs.
@@ -126,7 +122,27 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
     - [ ] Improve overall usability / stability
     - [ ] API performance : use Florian's serializer for simple records (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled)
 
+
+## Alpha 0.2.5 - *Deliver on ??, 2016*
+
+- [ ] Improve overall usability / stability
+- [ ] Improve "Find references" feature to provide position in file (use metainfo)
+    - [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs (might be useful in documentation or when accessing an entity we don't know the position yet).
+- [ ] API: saves the module (ctrl+s) **even if inconsistent**
+- [ ] Add watch on bundleIndex.json in order to detect bundle changes 
+- [ ] review diff / merge capabilities of VS Code (context of reimplems)
+
+- Bug fixes and ergonomy
+    - [ ] API performance : use Florian's serializer for simple records (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled)
+
+
+## Remaining tasks before POC release
+
+... none ... we're nearly there !
+
 ## Upcoming tasks
+
+- [ ] Verify compatibility 6.1 / 6.1.5 (test multi user) - seb
 
 - [ ] Parsing errors iteration 2 : code analyzer feedback 
 - [ ] Ergonomic way to override variables and methods
