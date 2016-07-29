@@ -78,33 +78,56 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
     - [x] Too large CString assignment
     - [x] "Go To Definition" doesn't work anymore
     
-## Alpha 0.2.4 - *Deliver on May 27, 2016*
+## Alpha 0.2.4 - *Deliver on June 17, 2016*
 
-- [ ] Generate source code
-    - [ ] Implement an API to initialize repository from TGV (?)
-    - [ ] Create git repository for our environnement
-    - [ ] Implement an API to dump bundles/deliveries/classes tree in a json file
-        - one file per bundle + one index file 
-    - [ ] Implement an API to dump a module in the source repository (e.g. in $rootPath/$Bundle/$Delivery/module.gold)
-- [x] ~~Explore file:// scheme handling with contentProviders, to lazy-load gold modules~~ Not working : *"Activating extension `mphasiswyde.ewamvscadaptor` failed: scheme 'file' already registered."*   
-- [ ] API: saves the module (ctrl+s) **even if inconsistent**
-- [ ] MMBrowser entry point : connection.onWorkspaceSymbol => metamodel browser request
-- [ ] Improve "Find references" feature to provide position in file (use metainfo)
-- [x] Improve outline : display full path to entity
-- [x] Polish syntax highlighting : capture types in variable declarations
-- Bug fixes
-    - [ ] Crash of eWam Service when using vscode
-    - [ ] Outline becomes unavailable at some point (onHover not called anymore)
-    - [ ] Integrity checking
-    - [x] fix item kind of suggestions
-    - [x] Diagnostics doesn't work anymore (reformat not working anymore either)
+- [ ] Source code management
+    - [x] JSON package index file : description of the repository  
+    - [x] bundle JSON package : description file for a bundle, describing it's deliveries/classes/modules/everything content and hierarchy and **it's URL !**
+    - [x] Dump repository from integrator env, based on bundles (+produce associated index and package files)
+        - [x] Dump the dependencies source code
+        - [x] Dump the workspace source code
+    - [x] Dump repository based on given index file + bundle package files
+    - [x] Keep a local VS Code cache of the classes bundles/deliveries. Keep in mind we the developper does not necessarily have the bundles / deliveries installed. Usually just synced from TGV
+    - [ ] Add watch on bundleIndex.json in order to detect bundle changes
+    - ~~[ ] Add workspace setting for the data repo building~~ : Not really needed for now
+    - [x] Dump a module in the source repository based on bundleIndex.json file description and cache (e.g. in $rootPath/$Bundle/$Delivery/module.gold)
+    - [x] Review plugin to account for these changes
+        - [x] on the fly HTML documentation production (paths provided in the documentation links)
+        - [x] path where the file of a module is retrieved when opening
+        - [x] path where the file of a module is stored when saving
+- [ ] review diff / merge capabilities of VS Code (context of reimplems)
+
+```
+> Execution of OPTIONS '/repository/generatePackagesIndex'...Done       -- 0.021000 seconds.
+> Execution of POST '/repository/generatePackagesIndex'...Done  -- 91.665001 seconds.
+> Execution of OPTIONS '/repository/buildProjectRepo'...Done    -- 0.007000 seconds.
+> Execution of POST '/repository/buildProjectRepo'...Done       -- 99.942001 seconds.
+> Execution of OPTIONS '/repository/buildDependenciesRepo'...Done       -- 0.007000 seconds.
+> Execution of POST '/repository/buildDependenciesRepo'...Done  -- 295.181000 seconds.
+```
 
 ## Testing - *Publish on ??*
 
 - [ ] Verify compatibility 6.1 / 6.1.5 (test multi user) - seb
 
-## Upcoming tasks
+## Remaining tasks before POC release
     
+- [x] Create git repository for our environnement
+- [x] ~~Explore file:// scheme handling with contentProviders, to lazy-load gold modules~~ Not working : *"Activating extension `mphasiswyde.ewamvscadaptor` failed: scheme 'file' already registered."*
+- [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs.
+- [ ] API: saves the module (ctrl+s) **even if inconsistent**
+- [x] MMBrowser entry point : connection.onWorkspaceSymbol => metamodel browser request
+- [ ] Improve "Find references" feature to provide position in file (use metainfo)
+- [x] Improve outline : display full path to entity
+- [x] Polish syntax highlighting : capture types in variable declarations
+- Bug fixes and ergonomy
+    - [x] fix item kind of suggestions
+    - [x] Diagnostics doesn't work anymore (reformat not working anymore either)
+    - [ ] Improve overall usability / stability
+    - [ ] API performance : use Florian's serializer for simple records (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled)
+
+## Upcoming tasks
+
 - [ ] Parsing errors iteration 2 : code analyzer feedback 
 - [ ] Ergonomic way to override variables and methods
 - [ ] Symbol renaming
@@ -123,6 +146,9 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 - [ ] Code and API re-fectoring  / architecturing / documentation
     - [ ] API proper and accurate documentation
     - [ ] API test
+    - [ ] Implement better outlining / metainfo production API
+    - [ ] Implement metainfo query API
+    - [ ] Implement entity access management : local file + synchronization questions  
 
 ## 2.0 supported by eWAM 6.2
 - [ ] Breakpoint management

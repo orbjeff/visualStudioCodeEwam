@@ -2,7 +2,7 @@
     "name": "ewamvscadaptor",
     "displayName": "eWamVSCAdaptor",
     "description": "e-Wam Visual Studio Adaptor",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "publisher": "mphasiswyde",
     "galleryBanner": {
         "color": "#5c2d91",
@@ -26,7 +26,8 @@
     },
     "activationEvents": [
         "onLanguage:gold",
-        "onCommand:ewam.openEntity"
+        "onCommand:ewam.openEntity",
+        "onCommand:ewam.buildDependenciesRepo"
     ],
     "main": "./out/src/extension",
     "contributes": {
@@ -154,6 +155,14 @@
             {
                 "command": "ewam.showModuleDocumentation",
                 "title": "eWam Show Documentation"
+            },
+            {
+                "command": "ewam.buildDependenciesRepo",
+                "title": "eWam Build Dependencies Repository"
+            },
+            {
+                "command": "ewam.syncWorkspaceRepo",
+                "title": "eWam Sync Workspace Repository"
             }
         ],
         "languages": [
@@ -224,10 +233,11 @@
 	},
 	"devDependencies": {
 		"typescript": "^1.8.10",
-		"vscode": "^0.11.13"
+		"vscode": "^0.11.14"
 	},
 	"dependencies": {
-		"vscode-languageclient": "^2.2.1",
-        "axios": "^0.11.1"
+		"vscode-languageclient": "^2.3.0",
+        "vscode-jsonrpc": "^2.2.0",
+        "axios": "^0.13.1"
     }
 }
