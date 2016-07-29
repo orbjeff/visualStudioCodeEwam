@@ -12,7 +12,7 @@ import {
     CompletionItem, CompletionItemKind, CompletionList, Hover, CodeActionParams, Command,
     SymbolInformation, ReferenceParams, Position, SignatureHelp, ParameterInformation, 
     SignatureInformation, Range, RenameParams, WorkspaceSymbolParams, DocumentFormattingParams,
-    TextEdit, Location, Definition, SymbolKind
+    TextEdit, Location, Definition, SymbolKind, NotificationType
 } from 'vscode-languageserver';
 
 import * as rp from 'request-promise';
@@ -30,19 +30,48 @@ let documents: TextDocuments = new TextDocuments();
 documents.listen(connection);
 
 // After the server has started the client sends an initilize request. The server receives
-// in the passed params the rootPath of the workspace plus the client capabilites. 
+// in the passed params the rootPath of the workspace plus the client capabilites.
+// Note the servers and client are re-initialized if the root path changes, thus, workspaceRoot
+// always contains the current root folder. 
 let workspaceRoot: string;
+
+interface tRepositoryParams {
+    repository_url : string;
+    basePath : string;
+    workspace_subdir: string;
+    dependencies_subdir : string;
+}
+
+let repoParams : tRepositoryParams;
+let extension : string = ".god";
+let isUpdatingMetaInfo : Boolean;
+
 connection.onInitialize(
     (params) : InitializeResult => {
+        connection.console.log("Initialization : " + params.rootPath);
+
         workspaceRoot = params.rootPath;
+
+        repoParams = {
+            "repository_url" : "",
+            "basePath" : params.rootPath,
+            "workspace_subdir": "",
+            "dependencies_subdir" : ".dependencies"
+        }
+
+        isUpdatingMetaInfo = false;
+        
+        refreshCache();
+    
         return {
             capabilities: {
+
                 // Tell the client that the server works in FULL text document sync mode
                 textDocumentSync: documents.syncKind,
                 // Tell the client that the server support code complete
                 completionProvider: {
                     resolveProvider: true,
-                     triggerCharacters: [ ".", "(", "," ]
+                    triggerCharacters: [ ".", "(", "," ]
                 },
                 hoverProvider: true,
                 documentSymbolProvider : true,
@@ -52,7 +81,7 @@ connection.onInitialize(
                 referencesProvider : true,
                 documentFormattingProvider : true
             }
-        }
+        };
     }
 );
 
@@ -231,7 +260,6 @@ connection.onDidChangeWatchedFiles((change) => {
 });
 
 // function transform(response:CompletionList): CompletionList {
-    
 //     for (var item of response.items){
 //         if ("name" in item) {
 //             item["label"] = item["name"];
@@ -239,7 +267,6 @@ connection.onDidChangeWatchedFiles((change) => {
 //             item["name"] = item["label"];
 //         }
 //     }
-    
 //     return response;
 // }
 
@@ -309,66 +336,64 @@ connection.onDidCloseTextDocument((params) => {
 });
 */
 
-function getHtmlDocFor(className) : Thenable<string> {
+function getHtmlDocFor(className) : string {
+    let fileName : string =  repoParams.basePath.replace(/\\/g, '/') + '/' + className + '.html';
+    let content : string = '';
+    content += '<html>\n';
+    content += '  <head><title>' + className + ' documentation</title></head>\n';
+    content += '  <body>\n';
+    content += '    <blockquote>';
+    content += '      <h1 style="color: #ffffff;">' + className + ' summary</h1>\n';
+    content += '      <p>' + metainfo[className].documentation.replace(/\n/g, "<br/>") + '      </p>\n';
     
-    return connection.sendRequest({ method: "getRootPath" })
-    .then( (rootPath : string) => {
-        
-        let fileName : string =  rootPath.replace(/\\/g, '/') + '/' + className + '.html';
-        let content : string = '';
-        content += '<html>\n';
-        content += '  <head><title>' + className + ' documentation</title></head>\n';
-        content += '  <body>\n';
-        content += '    <blockquote>';
-        content += '      <h1 style="color: red;">' + className + ' summary</h1>\n';
-        content += '      <p>' + metainfo[className].documentation.replace(/\n/g, "<br/>") + '      </p>\n';
-        
-        content += '      <h1 style="color: red;">' + className + ' parents</h1>\n';
-        
-        let indent : string = '';
-        
-        for (var index = metainfo[className].parents.length - 1; index >=0 ; index--) {
-            content += indent + '<a href="file:///' + rootPath + '/'+ 
-                metainfo[className].parents[index].label + '.gold">' +
-                metainfo[className].parents[index].label + '</a><br/>\n';
-                
-            indent += '&nbsp;&nbsp;&nbsp;';
-        }
-        
-        content += '      <h1 style="color: red;">' + className + ' descendants</h1>\n';
-        content += '      <ul>\n';
-        indent = '';
-        
-        for (var index = 0; index < metainfo[className].childs.length; index++) {
-            content += indent + '        <li><a href="file:///' + rootPath + '/'+ 
-                metainfo[className].childs[index].label + '.gold">' +
-                metainfo[className].childs[index].label + '</a></li>\n';
-                
-            // indent += '&nbsp;&nbsp;&nbsp;';
-        }
-        
-        content += '      </ul>\n';
-        
-        
-        content += '      <h1 style="color: red;">' + className + ' sisters</h1>\n';
-        content += '      <ul>\n';
-        indent = '';
-        
-        for (var index = 0; index <  metainfo[className].sisters.length; index++) {
-            content += '        <li><a href="file:///' + rootPath + '/'+ 
-                metainfo[className].sisters[index].label + '.gold">' +
-                metainfo[className].sisters[index].label + '</a></li>\n';
-        }
-        
-        content += '      </ul>\n';
+    content += '      <h1 style="color: #ffffff;">' + className + ' parents</h1>\n';
+    
+    let indent : string = '';
+    
+    for (var index = metainfo[className].parents.length - 1; index >=0 ; index--) {
+        content += indent + '<a style="color: #338eff;" href="file:///' + 
+            getModulePath(metainfo[className].parents[index].label)+'\\' + 
+            metainfo[className].parents[index].label + '.god">' +
+            metainfo[className].parents[index].label + '</a><br/>\n';
+            
+        indent += '&nbsp;&nbsp;&nbsp;';
+    }
+    
+    content += '      <h1 style="color: #ffffff;">' + className + ' descendants</h1>\n';
+    content += '      <ul>\n';
+    indent = '';
+    
+    for (var index = 0; index < metainfo[className].childs.length; index++) {
+        content += indent + '        <li><a style="color: #338eff;" href="file:///' +
+            getModulePath(metainfo[className].childs[index].label) + '\\' + 
+            metainfo[className].childs[index].label + '.god">' +
+            metainfo[className].childs[index].label + '</a></li>\n';
+            
+        // indent += '&nbsp;&nbsp;&nbsp;';
+    }
+    
+    content += '      </ul>\n';
+    
+    
+    content += '      <h1 style="color: #ffffff;">' + className + ' sisters</h1>\n';
+    content += '      <ul>\n';
+    indent = '';
+    
+    for (var index = 0; index <  metainfo[className].sisters.length; index++) {
+        content += '        <li><a style="color: #338eff;" href="file:///' + 
+            getModulePath(metainfo[className].sisters[index].label) + '\\' + 
+            metainfo[className].sisters[index].label + '.god">' +
+            metainfo[className].sisters[index].label + '</a></li>\n';
+    }
+    
+    content += '      </ul>\n';
 
-        content += '    </blockquote>';
-        content += '  </body>\n';
-        content += '</html>\n';
-        
-        // fs.writeFile(fileName, content);
-        return content;
-    });
+    content += '    </blockquote>';
+    content += '  </body>\n';
+    content += '</html>\n';
+    
+    // fs.writeFile(fileName, content);
+    return content;
 }
 
 function updateMetaInfoForClass(classname : string, source : string) : Thenable<tMetaInfo> {
@@ -383,7 +408,12 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
     // _rp.then( (response) => {
     //     ewamPath = response._Result;
     // });
-    
+
+    connection.console.log("updating : " + isUpdatingMetaInfo);
+
+    if (isUpdatingMetaInfo == true)
+        return null;
+
     var _rp = rp(
     {
         method: 'GET',
@@ -395,22 +425,27 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
         },
         json: true
     });
-    
+
+    isUpdatingMetaInfo = true;
+    connection.console.log("updating 1 : " + isUpdatingMetaInfo);
+
     return _rp
     .then( (response) => {
         if (metainfo == undefined) {
             metainfo = [];
         }
         metainfo[classname] = response;
-        return getHtmlDocFor(classname)
-    .then( (result : string) => {
+        let htmlDoc = getHtmlDocFor(classname);
         connection.console.log('Successfully updated meta-information. \n' + response);
+        isUpdatingMetaInfo = false;
+        connection.console.log("updating 3 : " + isUpdatingMetaInfo);
         return metainfo[classname];
-    })
     })
     .catch( (response) => {
         delete metainfo[classname];
         connection.console.log('Error while updating meta-information. \n' + response);
+        isUpdatingMetaInfo = false;
+        connection.console.log("updating 4 : " + isUpdatingMetaInfo);
     });       
 }
 
@@ -496,7 +531,6 @@ connection.onHover((textDocumentPosition: TextDocumentPositionParams) : Thenable
     
 });
 
-
 interface tParseResult {
     docUri: string,
     newSource: string 
@@ -510,7 +544,6 @@ connection.onRequest({method: "parse"},
                         "notifyNewSource" : boolean,
                         "uri" : string }) : Thenable<tParseResult> => 
 {
-        
     var _rp = rp(
     {
         method: 'POST',
@@ -632,7 +665,7 @@ function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] 
     for (var index = 0; index < metainfo[className].variables.length; index++) {
         result.push({
             "name": metainfo[className].variables[index].name + " : " + metainfo[className].variables[index].variableType,
-            "kind": getCompletionKindFromEntityClass(metainfo[className].variables[index].entity.theType),
+            "kind": getSymbolKindFromEntityClass(metainfo[className].variables[index].entity.baseType),
             "location": {
                 "uri": uri,
                 "range": {
@@ -664,7 +697,7 @@ function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] 
         
         result.push({
             "name": metainfo[className].methods[index].name + '(' + parameters + ')',
-            "kind": getCompletionKindFromEntityClass(metainfo[className].methods[index].entity.theType),
+            "kind": getSymbolKindFromEntityClass(metainfo[className].methods[index].entity.baseType),
             "location": {
                 "uri": uri,
                 "range": {
@@ -685,7 +718,7 @@ function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] 
     for (var index = 0; index < metainfo[className].types.length; index++) {
         result.push({
             "name": metainfo[className].types[index].name,
-            "kind": getCompletionKindFromEntityClass(metainfo[className].types[index].entity.theType),
+            "kind": getSymbolKindFromEntityClass(metainfo[className].types[index].entity.baseType),
             "location": {
                 "uri": uri,
                 "range": {
@@ -765,7 +798,7 @@ connection.onDefinition(
     let moduleName : string = 
         position.textDocument.uri.substring(
             position.textDocument.uri.lastIndexOf('/') + 1, position.textDocument.uri.lastIndexOf('.') );
-    
+
     let outline : tOutline = getOutlineAt(position.position, moduleName);
 
     // let repoReq = rp({
@@ -815,18 +848,18 @@ connection.onDefinition(
             uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName,
             json: true });
                     
-        return connection.sendRequest({ method: "getRootPath" })
-        .then( (rootPath : string) => {
-            let repoPath = rootPath.replace(/\\/g, '/');
-            return definitionReq
+        let repoPath = repoParams.basePath.replace(/\\/g, '/');
+        return definitionReq
         .then((defRange : tRange) => {
             // Retrive the owner content
             return contentReq
         .then((response) => {
-            fs.writeFile(repoPath + "/" + outline.entity.ownerName + ".gold", response["content"]);
+
+            let outFileName : string = getModulePath(outline.entity.ownerName) + "\\" + outline.entity.ownerName + extension;
+            fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
             
             return {
-                uri: "file:///" + repoPath + "/" + outline.entity.ownerName + ".gold",
+                uri: "file:///" + outFileName.replace(/\\/g, '/'),
                 range : {
                     "start": {
                         "line": defRange.startpos.line,
@@ -840,7 +873,6 @@ connection.onDefinition(
             };
         });
         });        
-        });
         
     } else {
     // outline.entity a class or module
@@ -851,16 +883,17 @@ connection.onDefinition(
             uri: url + '/api/rest/classOrModule/' + outline.name,
             json: true });
             
-        return connection.sendRequest({ method: "getRootPath" })
-        .then( (rootPath : string) => {
-            let repoPath = rootPath.replace(/\\/g, '/');
-            // Retrive the owner content
-            return contentReq
+        let repoPath = repoParams.basePath.replace(/\\/g, '/');
+        // Retrive the owner content
+        return contentReq
         .then((response) => { 
-            fs.writeFile(repoPath + "/" + outline.name + ".gold", response["content"]);
+
+            let outFileName : string = getModulePath(outline.name) + "\\" + outline.name + extension;
+
+            fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
             
             return {
-                uri: "file:///" + repoPath + "/" + outline.name + ".gold",
+                uri: "file:///" + outFileName.replace(/\\/g, '/'),
                 range : {
                     "start": {
                         "line": 0,
@@ -872,7 +905,6 @@ connection.onDefinition(
                     }
                 }
             };
-        });
         });
     }
 });
@@ -911,39 +943,38 @@ connection.onReferences(
     let outline : tOutline = getOutlineAt(param.position, moduleName);
 
     let whereUsedReq = rp({
-    method: 'GET',
-    uri: url + '/api/rest/entity/' + outline.entity.ownerName + '/' + outline.entity.label + '/WhereUsed',
-    json: true });
-    
-    
-    return connection.sendRequest({ method: "getRootPath" })
-    .then( (rootPath : string) => {
-        let fileName : string =  rootPath.replace(/\\/g, '/') + '/' + moduleName + '.gold';
-        
-        return whereUsedReq
-        .then( (whereUsedResult : tWhereUsed[]) : Location[] => {
-            let result : Location[] = [];
-
-            for(let index = 0; index < whereUsedResult.length; index++) {;
-                result.push({
-                    "uri": 'file:///' + rootPath + '/' + whereUsedResult[index].name + '.gold',
-                    "range": { 
-                        "start": {
-                            "line": 0,
-                            "character": 0
-                        },
-                        "end": {
-                            "line": 1,
-                            "character": 0
-                        }
-                    }
-                });
-            }
-            
-            return result;
-        });
+        method: 'GET',
+        uri: url + '/api/rest/entity/' + outline.entity.ownerName + '/' + outline.entity.label + '/WhereUsed',
+        json: true 
     });
+        
+    //let fileName : string = repoParams.basePath.replace(/\\/g, '/') + '/' + moduleName + '.gold';
+    let fileName : string = getModulePath(moduleName) + "\\" + moduleName + extension;  
+    fileName = fileName.replace(/\\/g, '/');
     
+    return whereUsedReq
+    .then( (whereUsedResult : tWhereUsed[]) : Location[] => {
+        let result : Location[] = [];
+
+        for(let index = 0; index < whereUsedResult.length; index++) {;
+            result.push({
+                "uri": 'file:///' + (getModulePath(whereUsedResult[index].name) + "/" + whereUsedResult[index].name + extension).replace(/\\/g, '/'),
+                //repoParams.basePath + '/' + whereUsedResult[index].name + '.gold',
+                "range": { 
+                    "start": {
+                        "line": 0,
+                        "character": 0
+                    },
+                    "end": {
+                        "line": 1,
+                        "character": 0
+                    }
+                }
+            });
+        }
+        
+        return result;
+    });
 });
 
 connection.onSignatureHelp(
@@ -1145,7 +1176,6 @@ connection.onDocumentFormatting(
         return null;
     }
 )
-
 
 /* Improve getSymbolKindFromEntityClass and getCompletionKindFromEntityClass using this : 
 
@@ -1398,54 +1428,217 @@ connection.onWorkspaceSymbol(
         
         return contentReq
         .then( (entities : tEntity[]) => {
-            
-        return connection.sendRequest({ method: "getRootPath" })
-        .then( (rootPath : string) => {
-            
-            let fileName : string = "";
-            let symbols : SymbolInformation[] = [];
-            
-            for (let index : number = 0; index < entities.length; index++ ) {
-                let entity : tEntity = entities[index];
                 
-                if (entity.exactType == "aModuleDef" || entity.exactType == "aClassDef") { 
-                    fileName = rootPath.replace(/\\/g, '/') + '/' + entity.label + '.gold';
-                } else {
-                    fileName = rootPath.replace(/\\/g, '/') + '/' + entity.ownerName + '.gold';
+        let fileName : string = "";
+        let symbols : SymbolInformation[] = [];
+        
+        for (let index : number = 0; index < entities.length; index++ ) {
+            let entity : tEntity = entities[index];
+            
+            if (entity.exactType == "aModuleDef" || entity.exactType == "aClassDef") { 
+                fileName = repoParams.basePath.replace(/\\/g, '/') + '/' + entity.label + '.gold';
+            } else {
+                fileName = repoParams.basePath.replace(/\\/g, '/') + '/' + entity.ownerName + '.gold';
+            }
+            
+            let symbol : SymbolInformation = {
+                "name": entity.label,
+                "kind": getSymbolKindFromEntityClass(entity.baseType),
+                "containerName": entity.ownerName,
+                "location": {
+                    "uri": "file:///" + fileName,
+                    "range": {
+                        "start": {
+                            "line": 0,
+                            "character": 0
+                        },
+                        "end": {
+                            "line": 0,
+                            "character": 0
+                        }
+                    } 
                 }
-                
-                let symbol : SymbolInformation = {
-                    "name": entity.label,
-                    "kind": getSymbolKindFromEntityClass(entity.baseType),
-                    "containerName": entity.ownerName,
-                    "location": {
-                        "uri": "file:///" + fileName,
-                        "range": {
-                            "start": {
-                                "line": 0,
-                                "character": 0
-                            },
-                            "end": {
-                                "line": 0,
-                                "character": 0
-                            }
-                        } 
-                    }
-                }
-                
-                symbols.push(symbol);
-            };
+            }
             
-            return symbols;
-        });
-            
-        });
+            symbols.push(symbol);
+        };
+        
+        return symbols;
+    });
     }
 );
 
 connection.onRenameRequest( (RenameParams) => { return null;} );
 
 connection.onCodeAction( (params : CodeActionParams) : Command[] => {return null;});
+
+let bundleCacheRefreshing : Boolean = false;
+let bundleCache;
+
+interface tModuleBundle {
+    bundle: string;
+    delivery: string;
+    dependency: boolean;
+}
+
+let moduleBundleCache : tModuleBundle[]; 
+
+function updateModuleBundleCache () {
+
+    if (moduleBundleCache == undefined) {
+        moduleBundleCache = [];
+    }
+    
+    let nbEntities : number = 0;
+
+    for (let i = 0; i < bundleCache.projectPackages.length; i++) {
+
+        let bundle = bundleCache.projectPackages[i];
+        for (let j = 0; j < bundle.deliveries.length; j++) {
+
+            let delivery = bundle.deliveries[j];
+            nbEntities += delivery.entities.length;
+            for (let k = 0; k < delivery.entities.length; k++) {
+                
+                let entity = delivery.entities[k];
+                if (entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" || 
+                    entity.exactType == "aModuleDef" || entity.exactType == "aClassDef")
+                {
+                    moduleBundleCache[entity.name] = {
+                        "bundle": bundle.name,
+                        "delivery": delivery.name,
+                        "dependency": false
+                    };
+                    
+                }
+            }
+        }
+    }
+
+    connection.console.log("size of moduleBundleCache : " + moduleBundleCache.length);
+
+    for (let i = 0; i < bundleCache.dependencyPackages.length; i++) {
+
+        let bundle = bundleCache.dependencyPackages[i];
+        for (let j = 0; j < bundle.deliveries.length; j++) {
+
+            let delivery = bundle.deliveries[j];
+            nbEntities += delivery.entities.length;
+            for (let k = 0; k < delivery.entities.length; k++) {
+                
+                let entity = delivery.entities[k];
+                if (entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" || 
+                    entity.exactType == "aModuleDef" || entity.exactType == "aClassDef")
+                {
+
+                    moduleBundleCache[entity.name] = {
+                        "bundle": bundle.name,
+                        "delivery": delivery.name,
+                        "dependency": true
+                    };
+                }
+            }
+        }
+    }
+
+    connection.console.log("NbEntities read : " + nbEntities);
+    connection.console.log("size of moduleBundleCache : " + Object.keys(moduleBundleCache).length);
+    connection.console.log("moduleBundleCache access test : " + moduleBundleCache["aWEXIdAllocatorChecker"].bundle);
+}
+
+function refreshCache() : Boolean {
+    if (bundleCacheRefreshing) {
+        return false;
+    }
+
+    bundleCacheRefreshing = true;
+
+    let data = fs.readFileSync(repoParams.basePath + "/bundleIndex.json", 'utf8');
+    if (data != "") {
+        bundleCache = JSON.parse(data);
+        // Feed the "metainfo" variable
+        updateModuleBundleCache();
+        bundleCacheRefreshing = false;
+        return true;
+    } else {
+        bundleCacheRefreshing = false;
+        return false;
+    }
+}
+
+function getModulePath(moduleName: string) : string {
+    if (moduleBundleCache == undefined) {
+        refreshCache();
+    }
+
+    if ( ! (moduleName in moduleBundleCache) ) {
+        return repoParams.basePath + "\\.unbundled\\";
+    }
+
+    let moduleBundle : tModuleBundle = moduleBundleCache[moduleName];
+    if (moduleBundle.dependency) {
+        return repoParams.basePath + "\\" + repoParams.dependencies_subdir + "\\" + moduleBundle.bundle + "\\" + moduleBundle.delivery;
+    } else {
+        return repoParams.basePath + "\\" + repoParams.workspace_subdir + "\\" + moduleBundle.bundle + "\\" + moduleBundle.delivery;
+    }
+}
+
+connection.onRequest({method: "getModulePath"} , 
+                     (params : { "moduleName": string }) : string => 
+{
+    return getModulePath(params.moduleName);
+});
+
+
+connection.onRequest({method: "buildDependenciesRepo"} , 
+                     () => 
+{
+    return buildDependenciesRepo();
+});
+
+function buildDependenciesRepo() : Thenable<Boolean> {
+    let buildRepoReq = rp({
+        method: 'POST',
+        uri: url + '/api/rest/repository/buildDependenciesRepo',
+        body : {
+            "repository_url": repoParams.repository_url,
+            "basePath": repoParams.basePath,
+            "workspace_subdir": repoParams.workspace_subdir,
+            "dependencies_subdir": repoParams.dependencies_subdir 
+        },
+        json: true 
+    });
+    
+    return buildRepoReq.then((response) => {
+        return true;
+    });
+
+}
+
+connection.onRequest({method: "syncWorkspaceRepo"} , 
+                     () => 
+{
+    return syncWorkspaceRepo();
+});
+
+function syncWorkspaceRepo() : Thenable<Boolean> {
+    let buildWorkspaceReq = rp({
+        method: 'POST',
+        uri: url + '/api/rest/repository/buildProjectRepoFromIndex',
+        body : {
+            "repository_url": repoParams.repository_url,
+            "basePath": repoParams.basePath,
+            "workspace_subdir": repoParams.workspace_subdir,
+            "dependencies_subdir": repoParams.dependencies_subdir 
+        },
+        json: true 
+    });
+    
+    return buildWorkspaceReq.then((response) => {
+        return true;
+    });
+
+}
 
 // Listen on the connection
 connection.listen();

@@ -4,15 +4,23 @@
 
 import * as path from 'path';
 
-import { LanguageClient, LanguageClientOptions, SettingMonitor, ServerOptions, TransportKind }
+import { LanguageClient, LanguageClientOptions, ErrorAction, CloseAction, SettingMonitor, ServerOptions, TransportKind }
     from 'vscode-languageclient';
+
+import { Message, RequestHandler, NotificationHandler, RequestType, NotificationType, Trace, Event } from 'vscode-jsonrpc';
+
 import { languages, Diagnostic, DiagnosticSeverity, TextDocumentContentProvider } from 'vscode';
 
 import * as vscode from 'vscode';
 import * as axios from 'axios';
 import * as fs from 'fs';
 
-let EXTENSION = '.gold';
+var url = require('url');
+var http = require('http');
+var exec = require('child_process').exec;
+var spawn = require('child_process').spawn;
+
+let EXTENSION = '.god';
 let scenarioBarItem: vscode.StatusBarItem;
 let checkInBarItem: vscode.StatusBarItem;
 let checkOutBarItem: vscode.StatusBarItem;
@@ -27,6 +35,90 @@ let languageClient : LanguageClient;
 let saving : boolean = false;
 let parsePlanned : boolean = false;
 let extensionContext : vscode.ExtensionContext;
+
+
+// Settings : 
+// // The settings interface describe the server relevant settings part
+// interface Settings {
+// 	languageServerExample: ExampleSettings;
+// }
+// 
+// // These are the example settings we defined in the client's package.json
+// // file
+// interface ExampleSettings {
+// 	maxNumberOfProblems: number;
+// }
+// 
+// // hold the maxNumberOfProblems setting
+// let maxNumberOfProblems: number;
+// // The settings have changed. Is send on server activation
+// // as well.
+// connection.onDidChangeConfiguration((change) => {
+// 	let settings = <Settings>change.settings;
+// 	maxNumberOfProblems = settings.languageServerExample.maxNumberOfProblems;
+// 	if (maxNumberOfProblems == undefined) {
+// 		connection.console.log('Undefined configuration value: maxNumberOfProblems\n');
+// 	} 
+// 	maxNumberOfProblems = maxNumberOfProblems || 100;
+// 	// Revalidate any open text documents
+// 	documents.all().forEach(validateTextDocument);
+// });
+
+
+// Whatching files:
+// fs.watch(...)
+
+
+function buildDependenciesRepo() {
+    vscode.window.showInformationMessage(
+        "Loading dependencies, this may take a few minutes, please be patient...");
+
+        vscode.window.showInformationMessage(
+            "You will be notified when loading is finished.");
+    
+    languageClient.sendRequest({ method: "buildDependenciesRepo" }, {})
+    .then( (params: any ) => {
+        vscode.window.showInformationMessage("Finished loading dependencies.");
+    });
+}
+
+function syncWorkspaceRepo() {
+    vscode.window.showInformationMessage(
+        "Synchronizing workspace, this may take a few minutes, please be patient...");
+    vscode.window.showInformationMessage("You will be notified when loading is finished.");
+    
+    languageClient.sendRequest({ method: "syncWorkspaceRepo" }, {})
+    .then( (params: any ) => {
+        vscode.window.showInformationMessage("Finished synchronizing workspace.");
+    });
+}
+
+function downloadFile() {
+    // App variables
+    var file_url = 'http://home.pantoufle.pl/Star Wars - Timothy Zahn Trylogy.7z';
+    //https://github.com/MphasisWyde/WydeActiveModelerAPI/raw/master/Bundle/WXeWamAPI/Upgrade_V1/WXeWamAPI.Tgv
+
+    var DOWNLOAD_DIR = 'D:/Wyde-TFS/visualStudioCodeEwam/client/';
+
+    // Function to download file using HTTP.get
+    var options = {
+        host: url.parse(file_url).host,
+        port: 80,
+        path: url.parse(file_url).pathname
+    };
+    
+    var file_name = url.parse(file_url).pathname.split('/').pop();
+    var file = fs.createWriteStream(DOWNLOAD_DIR + file_name);
+
+    http.get(options, function(res) {
+        res.on('data', function(data) {
+            file.write(data);
+        }).on('end', function() {
+            file.end();
+            console.log(file_name + ' downloaded to ' + DOWNLOAD_DIR);
+        });
+    });
+}
 
 function setDecoForStopPoints(methods) {
 
@@ -70,6 +162,22 @@ function refreshUI() {
     }
 }
 
+function recursiveMkdir(path : string) {
+    let dirs = path.split("\\");
+
+    let curPath : string = "";
+
+    for (let dir in dirs) {
+        curPath += dirs[dir] + "\\";
+
+        try {
+            fs.accessSync(curPath);
+        } catch (err) {
+            fs.mkdirSync(curPath);
+        }
+    }
+}
+
 function openClass(name: string) {
     if (!vscode.workspace.rootPath) {
         vscode.window.showErrorMessage("eWam open: Cannot work without opened folder");
@@ -77,39 +185,36 @@ function openClass(name: string) {
     }
 
     axios.get(config.get('url') + '/api/rest/classOrModule/' + name)
-        .then(function(response) {
-            vscode.window.setStatusBarMessage('eWam Parsing Ok');
-            /* editor.edit(editBuilder => {            
-                 editBuilder.replace(editor.selection, response.data.content);     
-                 }
-             );*/
+    .then((response) => {
+        vscode.window.setStatusBarMessage('eWam Parsing Ok');
 
-            //console.log(vscode.workspace.rootPath);
-            var fileName = vscode.workspace.rootPath + '\\' + name + EXTENSION;
+        languageClient.sendRequest(
+            { method: "getModulePath" },
+            { "moduleName": name } 
+        ).then((modulePath: string) => {
+            var fileName = modulePath + "\\" + name + EXTENSION;
 
-            fs.writeFile(fileName, response.data["content"], function(err) {
-
+            try {
+                fs.accessSync(modulePath)
+            } catch (err) {
+                recursiveMkdir(modulePath);
+            };
+            
+            fs.writeFile(fileName, response.data["content"], function(err)
+            {
                 if (err) throw err;
-                //var uploadingStatus = vscode.window.setStatusBarMessage("Class imported " + fileName);
 
                 var configDocument = vscode.workspace.openTextDocument(fileName);
                 configDocument.then(function(document) {
                     vscode.window.showTextDocument(document);
                     refreshUI();
                 });
-                /*
-                const spawn = require('child_process').spawn;
-                const ls = spawn('git', ['add', fileName], { cwd: vscode.workspace.rootPath, env: process.env });
-
-                ls.stdout.on('data', (data) => {
-                    console.log(`stdout: ${data}`);
-                });*/
             });
-        })
-        .catch(function(response) {
-            console.log(response);
         });
-
+    })
+    .catch((response) => {
+        console.log(response);
+    });
 }
 
 function GenericPostOperation(name: string, op: string) {
@@ -145,8 +250,12 @@ function checkInClass(name: string) {
 }
 
 function getOpenClassName(doc? : vscode.TextDocument) {
-    if (!doc) {
-        doc  = vscode.window.activeTextEditor.document;
+    if (doc == undefined || !doc) {
+        if (vscode.window.activeTextEditor != undefined) {
+            doc  = vscode.window.activeTextEditor.document;
+        } else {
+            return;
+        }
     }
 
     var fpath = doc.fileName.replace(/^.*[\\\/]/, '');
@@ -515,8 +624,8 @@ function searchClass(callBackFunc: searchClassCallBack) {
                     vscode.window.showQuickPick(getDataAsTable(response))
                         .then((selection) => {
                             if (selection != undefined) {
-                                if (selection.theType == "aClassDef" || selection.theType == "aReimplemModuleDef" ||
-                                    selection.theType == "aModuleDef" || selection.theType == "aReimplemClassDef") {
+                                if (selection.exactType == "aClassDef" || selection.exactType == "aReimplemModuleDef" ||
+                                    selection.exactType == "aModuleDef" || selection.exactType == "aReimplemClassDef") {
                                     callBackFunc(selection.label);
                                 } else {
                                     interact(selection.location);
@@ -568,13 +677,42 @@ export function activate(context: vscode.ExtensionContext) {
             configurationSection: 'ewam',
             // Notify the server about file changes to '.clientrc files contain in the workspace
             fileEvents: vscode.workspace.createFileSystemWatcher('**/.gold')
-        }
+        },
+
+        errorHandler : {
+            
+            error(error: Error, message: Message, count: number): ErrorAction {
+                console.log(error);
+                console.log(message);
+                console.log(count);
+                return ErrorAction.Continue;
+            },
+
+            closed(): CloseAction {
+                return CloseAction.Restart;
+            }
+        
+        } 
+// export interface ErrorHandler {
+//     /**
+//      * An error has occurred while writing or reading from the connection.
+//      *
+//      * @param error - the error received
+//      * @param message - the message to be delivered to the server if know.
+//      * @param count - a count indicating how often an error is received. Will
+//      *  be reset if a message got successfully send or received.
+//      */
+//     error(error: Error, message: Message, count: number): ErrorAction;
+//     /**
+//      * The connection to the server got closed.
+//      */
+//     closed(): CloseAction;
+// }
     }
     
     // Create the language client and start the client.
-    languageClient = new LanguageClient('Ewam VSServer', serverOptions, clientOptions);
+    languageClient = new LanguageClient('Ewam VSServer', 'ewam-server', serverOptions, clientOptions);
     
-
     /*languageClient.onRequest({method: "onParseSuccessful"}, 
         (params: {newSource: string, docUri: string} ) => {
             var editor: vscode.TextEditor = null;
@@ -652,9 +790,9 @@ export function activate(context: vscode.ExtensionContext) {
             return vscode.workspace.rootPath;
         }
     );
-    
+
     let disposable = languageClient.start();
-    
+
     // Push the disposable to the context's subscriptions so that the 
     // client can be deactivated on extension deactivation
     context.subscriptions.push(disposable);
@@ -732,6 +870,16 @@ export function activate(context: vscode.ExtensionContext) {
         return showModuleDocumentation(className);
     });
     context.subscriptions.push(disposable);
+    disposable = vscode.commands.registerCommand('ewam.buildDependenciesRepo', function() {
+        buildDependenciesRepo();
+    });
+    context.subscriptions.push(disposable);
+    disposable = vscode.commands.registerCommand('ewam.syncWorkspaceRepo', function() {
+        syncWorkspaceRepo();
+    });
+    context.subscriptions.push(disposable);
+    
+
     
     parseBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     parseBarItem.text = '$(beaker) Parse'
@@ -856,12 +1004,16 @@ export function activate(context: vscode.ExtensionContext) {
     moduleDocumentationProvider = new ModuleDocumentationContentProvider();
     let registration = vscode.workspace.registerTextDocumentContentProvider('ewam', moduleDocumentationProvider);
     
+    // vscode.window.showInformationMessage("eWAM Plugin activated");
+
     disposable = vscode.window.setStatusBarMessage('Ready');
     context.subscriptions.push(disposable);
+
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
-   return;
+    console.log("eWAM extension deactivation");
+    return;
 }
 
