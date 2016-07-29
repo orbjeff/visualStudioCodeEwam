@@ -123,11 +123,12 @@ Additional tasks :
     - [ ] API performance : use Florian's serializer for simple records (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled)
 
 
-## Alpha 0.2.5 - *Deliver on ??, 2016*
+## Alpha 0.2.5 - *Deliver on August 28, 2016*
 
-- [ ] Improve overall usability / stability
-- [ ] Improve "Find references" feature to provide position in file (use metainfo)
+- [ ] Improve overall usability / stability, test all features ! Be the user developper.
+- [ ] Improve "Find references" feature to provide position in file (use metainfo or maybe ewam-open:// URL ?)
     - [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs (might be useful in documentation or when accessing an entity we don't know the position yet).
+- [ ] Add code snippets
 - [ ] API: saves the module (ctrl+s) **even if inconsistent**
 - [ ] Add watch on bundleIndex.json in order to detect bundle changes 
 - [ ] review diff / merge capabilities of VS Code (context of reimplems)
