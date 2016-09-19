@@ -2,7 +2,7 @@
     "name": "ewamvscadaptor",
     "displayName": "eWamVSCAdaptor",
     "description": "e-Wam Visual Studio Adaptor",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "publisher": "mphasiswyde",
     "galleryBanner": {
         "color": "#5c2d91",
@@ -22,12 +22,17 @@
         "Other"
     ],
     "engines": {
-        "vscode": "^0.10.10"
+        "vscode": "^0.10.11"
     },
     "activationEvents": [
         "onLanguage:gold",
         "onCommand:ewam.openEntity",
-        "onCommand:ewam.buildDependenciesRepo"
+        "onCommand:ewam.newClass",
+        "onCommand:ewam.newModule",
+        "onCommand:ewam.buildDependenciesRepo",
+        "onCommand:ewam.syncAll",
+        "onCommand:ewam.syncTGV",
+        "onCommand:ewam.syncGit"
     ],
     "main": "./out/src/extension",
     "contributes": {
@@ -110,59 +115,79 @@
         "commands": [
             {
                 "command": "ewam.openEntity",
-                "title": "eWam Open Entity"
+                "title": "eWam: Open Entity"
             },
             {
                 "command": "ewam.checkIn",
-                "title": "eWam Check In"
+                "title": "eWam: Check In"
             },
             {
                 "command": "ewam.checkOut",
-                "title": "eWam Check Out"
+                "title": "eWam: Check Out"
             },
             {
                 "command": "ewam.parse",
-                "title": "eWam Parse"
+                "title": "eWam: Parse"
             },
             {
                 "command": "ewam.reimplem",
-                "title": "eWam Reimplem"
+                "title": "eWam: Reimplem"
             },
             {
                 "command": "ewam.scenario",
-                "title": "eWam Scenario"
+                "title": "eWam: Scenario"
             },
             {
                 "command": "ewam.deliver",
-                "title": "eWam Deliver"
+                "title": "eWam: Deliver"
             },
             {
                 "command": "ewam.newClass",
-                "title": "eWam New Class"
+                "title": "eWam: New Class"
+            },
+            {
+                "command": "ewam.newModule",
+                "title": "eWam: New Module"
             },
             {
                 "command": "ewam.metaInfo",
-                "title": "eWam Class Meta Info"
+                "title": "eWam: Class Meta Info"
             },
             {
                 "command": "ewam.run",
-                "title": "eWam Run Application"
+                "title": "eWam: Run Application"
             },
             {
                 "command": "ewam.classTree",
-                "title": "eWam Show Class Tree"
+                "title": "eWam: Show Class Tree"
             },
             {
                 "command": "ewam.showModuleDocumentation",
-                "title": "eWam Show Documentation"
+                "title": "eWam: Show Documentation"
             },
             {
                 "command": "ewam.buildDependenciesRepo",
-                "title": "eWam Build Dependencies Repository"
+                "title": "eWam: Sync Dependencies Repository"
             },
             {
-                "command": "ewam.syncWorkspaceRepo",
-                "title": "eWam Sync Workspace Repository"
+                "command": "ewam.try",
+                "title": "eWam: Try it"
+            },
+            {
+                "command": "ewam.syncTGV",
+                "title": "eWam: Sync TGVs"
+            },
+            {
+                "command": "ewam.syncAll",
+                "title": "eWam: Sync Everything (TGV, Git, local dependencies)"
+            },
+            {
+                "command": "ewam.syncGit",
+                "title": "eWam: Sync Git"
+            },
+            {
+                "command": "ewam.getCommands",
+                "title": "eWam: Get Commands"
             }
         ],
         "languages": [
@@ -233,11 +258,11 @@
 	},
 	"devDependencies": {
 		"typescript": "^1.8.10",
-		"vscode": "^0.11.14"
+		"vscode": "^0.11.18"
 	},
 	"dependencies": {
-		"vscode-languageclient": "^2.3.0",
-        "vscode-jsonrpc": "^2.2.0",
-        "axios": "^0.13.1"
+		"vscode-languageclient": "^2.5.0",
+        "vscode-jsonrpc": "^2.4.0",
+        "axios": "^0.14.0"
     }
 }
