@@ -256,7 +256,7 @@ function validateTextDocument(textDocument: TextDocument): void {
 
 connection.onDidChangeWatchedFiles((change) => {
     // Monitored files have change in VSCode
-    connection.console.log('We received an file change event');
+    // connection.console.log('We received an file change event');
 });
 
 // function transform(response:CompletionList): CompletionList {
@@ -343,10 +343,10 @@ function getHtmlDocFor(className) : string {
     content += '  <head><title>' + className + ' documentation</title></head>\n';
     content += '  <body>\n';
     content += '    <blockquote>';
-    content += '      <h1 style="color: #ffffff;">' + className + ' summary</h1>\n';
+    content += '      <h3 style="color: #ffffff;">' + className + ' summary</h3>\n';
     content += '      <p>' + metainfo[className].documentation.replace(/\n/g, "<br/>") + '      </p>\n';
     
-    content += '      <h1 style="color: #ffffff;">' + className + ' parents</h1>\n';
+    content += '      <h3 style="color: #ffffff;">' + className + ' parents</h3>\n';
     
     let indent : string = '';
     
@@ -359,7 +359,7 @@ function getHtmlDocFor(className) : string {
         indent += '&nbsp;&nbsp;&nbsp;';
     }
     
-    content += '      <h1 style="color: #ffffff;">' + className + ' descendants</h1>\n';
+    content += '      <h3 style="color: #ffffff;">' + className + ' descendants</h3>\n';
     content += '      <ul>\n';
     indent = '';
     
@@ -375,7 +375,7 @@ function getHtmlDocFor(className) : string {
     content += '      </ul>\n';
     
     
-    content += '      <h1 style="color: #ffffff;">' + className + ' sisters</h1>\n';
+    content += '      <h3 style="color: #ffffff;">' + className + ' sisters</h3>\n';
     content += '      <ul>\n';
     indent = '';
     
@@ -409,8 +409,6 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
     //     ewamPath = response._Result;
     // });
 
-    connection.console.log("updating : " + isUpdatingMetaInfo);
-
     if (isUpdatingMetaInfo == true)
         return null;
 
@@ -427,7 +425,6 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
     });
 
     isUpdatingMetaInfo = true;
-    connection.console.log("updating 1 : " + isUpdatingMetaInfo);
 
     return _rp
     .then( (response) => {
@@ -436,16 +433,14 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
         }
         metainfo[classname] = response;
         let htmlDoc = getHtmlDocFor(classname);
-        connection.console.log('Successfully updated meta-information. \n' + response);
+        // connection.console.log('Successfully updated meta-information. \n' + response);
         isUpdatingMetaInfo = false;
-        connection.console.log("updating 3 : " + isUpdatingMetaInfo);
         return metainfo[classname];
     })
     .catch( (response) => {
         delete metainfo[classname];
-        connection.console.log('Error while updating meta-information. \n' + response);
+        // connection.console.log('Error while updating meta-information. \n' + response);
         isUpdatingMetaInfo = false;
-        connection.console.log("updating 4 : " + isUpdatingMetaInfo);
     });       
 }
 
@@ -487,7 +482,10 @@ connection.onHover((textDocumentPosition: TextDocumentPositionParams) : Thenable
         .then(
             (meta : tMetaInfo) => {
                 let outline : tOutline = getOutlineAt(textDocumentPosition.position, className);
-                 
+
+                if (outline == null || outline == undefined)
+                    return null;
+                
                 return {
                     "range": {
                         "start": {
@@ -508,7 +506,10 @@ connection.onHover((textDocumentPosition: TextDocumentPositionParams) : Thenable
         );
     } else {
         let outline : tOutline = getOutlineAt(textDocumentPosition.position, className);
-            
+        
+        if (outline == null || outline == undefined)
+            return null;
+
         return {
             "range": {
                 "start": {
@@ -658,6 +659,63 @@ connection.onRequest({method: "save"} ,
         
     });
 });
+
+function getMethodAtLine(className : string, line : number) : string | Thenable<string> {
+
+    let method : tMethod;
+    let result : string = "";
+
+    if (metainfo == undefined) {
+        metainfo = [];
+    }
+
+    if (metainfo[className] == undefined) {
+        return updateMetaInfoForClass(className, "")
+        .then(
+            (meta : tMetaInfo) => {
+
+                for (var index = 0; index < metainfo[className].methods.length; index++) {
+
+                    method = metainfo[className].methods[index];
+                    if (method.range.endpos.line - 1 > line) {
+                        if (index > 0) {
+                            result = metainfo[className].methods[index - 1].name;
+                        }
+                        break;
+                    }
+                }
+
+                // connection.console.log(result);
+                return result;
+            }
+        );
+    } else {
+
+        for (var index = 0; index < metainfo[className].methods.length; index++) {
+
+            method = metainfo[className].methods[index];
+
+            if (method.range.endpos.line - 1 > line) {
+                if (index > 0) {
+                    result = metainfo[className].methods[index - 1].name;
+                }
+                break;
+            }
+        }
+
+        // connection.console.log(result);
+
+        return result;
+    }
+}
+
+connection.onRequest(
+    {method: "getMethodAtLine"},  
+    (params : { "classname": string, "line": number}) : string | Thenable<string> => {
+        // connection.console.log("getMethodAtLine " + params.classname + " " + params.line);
+        return getMethodAtLine(params.classname, params.line);
+    }
+);
 
 function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] {
     let result : SymbolInformation[] = [];
@@ -1515,7 +1573,7 @@ function updateModuleBundleCache () {
         }
     }
 
-    connection.console.log("size of moduleBundleCache : " + moduleBundleCache.length);
+    // connection.console.log("size of moduleBundleCache : " + moduleBundleCache.length);
 
     for (let i = 0; i < bundleCache.dependencyPackages.length; i++) {
 
@@ -1541,9 +1599,9 @@ function updateModuleBundleCache () {
         }
     }
 
-    connection.console.log("NbEntities read : " + nbEntities);
-    connection.console.log("size of moduleBundleCache : " + Object.keys(moduleBundleCache).length);
-    connection.console.log("moduleBundleCache access test : " + moduleBundleCache["aWEXIdAllocatorChecker"].bundle);
+    // connection.console.log("NbEntities read : " + nbEntities);
+    // connection.console.log("size of moduleBundleCache : " + Object.keys(moduleBundleCache).length);
+    // connection.console.log("moduleBundleCache access test : " + moduleBundleCache["aWEXIdAllocatorChecker"].bundle);
 }
 
 function refreshCache() : Boolean {

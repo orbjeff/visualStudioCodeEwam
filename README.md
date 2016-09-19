@@ -123,23 +123,116 @@ Additional tasks :
     - [ ] API performance : use Florian's serializer for simple records (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled)
 
 
-## Alpha 0.2.5 - *Deliver on August 28, 2016*
+## Alpha 0.2.5 - *Deliver on September 14, 2016*
 
-- [ ] Improve overall usability / stability, test all features ! Be the user developper.
+- [x] Add code snippets
+- [x] Improve overall usability / stability, test all features ! Be the user developper.
+    - [x] Implement a contextualized way to test things (run method, run class, run scenario ...)
+    - [x] Make safe testing API blocking
+    
+- [x] sync all from VS Code (tgv sync + local dependencies + sync git)
+    - [x] check git ignore
+
+- [x] API: saves the module (ctrl+s) **even if inconsistent**
+- [ ] Overriding
+- [ ] Add a simple scenario
+
+- Bug fixes and ergonomy
+    - [x] "UBS in ascendants" error on "proc". Should be raised as a syntax error. In the meantime: /ERRORMESSAGE:FALSE
+        - [x] make /ERRORMESSAGE:FALSE default when launching as a service
+    - [x] Module creation doesn't work ...
+    - [ ] API performance (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled, due to serializer)
+        - use Florian's serializer for simple records
+        - maybe cache metainfo in local file
+    - [ ] Module parsing error due to aClassPreparer
+    - [x] Breakpoint API not working
+        - [ ] Breakpoint UI refreshing
+    - [ ] New class : wrong parent (also check new module)
+        - [ ] + improved new class input (choose parent class from a suggestion list)
+    - [ ] Repair Run Application
+    - [ ] Add Open IDE feature
+    - [ ] Clean debug outputs
+    - [ ] Lookup API crashes
+
 - [ ] Improve "Find references" feature to provide position in file (use metainfo or maybe ewam-open:// URL ?)
     - [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs (might be useful in documentation or when accessing an entity we don't know the position yet).
-- [ ] Add code snippets
-- [ ] API: saves the module (ctrl+s) **even if inconsistent**
 - [ ] Add watch on bundleIndex.json in order to detect bundle changes 
 - [ ] review diff / merge capabilities of VS Code (context of reimplems)
 
+- [ ] Produce a video presenting all the features
+
+## Alpha 0.2.6 - *Deliver on September 26, 2016*
+    
+- [x] Overriding
+- [ ] Add a simple scenario
+
 - Bug fixes and ergonomy
-    - [ ] API performance : use Florian's serializer for simple records (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled)
+    - [ ] API performance (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled, due to serializer)
+        - use Florian's serializer for simple records
+        - maybe cache metainfo in local file
+    - [x] Module parsing error due to aClassPreparer
+    - [x] Breakpoint API not working
+        - [x] Breakpoint UI refreshing
+    - [x] New class : wrong parent (also check new module)
+        - [x] + improved new class input (choose parent class from a suggestion list)
+    - [x] Repair Run Application
+    - [/] Add Open IDE feature
+    - [x] Clean debug outputs
+    - [ ] Lookup API crashes
+
+- [ ] Improve "Find references" feature to provide position in file (use metainfo or maybe ewam-open:// URL ?)
+    - [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs (might be useful in documentation or when accessing an entity we don't know the position yet).
+- [ ] Add watch on bundleIndex.json in order to detect bundle changes 
+- [ ] review diff / merge capabilities of VS Code (context of reimplems)
+
+- [ ] Produce a video presenting all the features
 
 
 ## Remaining tasks before POC release
 
+- [ ] Improve "Find references" feature to provide position in file (use metainfo or maybe ewam-open:// URL ?)
+    - [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs (might be useful in documentation or when accessing an entity we don't know the position yet).
+- [ ] Add watch on bundleIndex.json in order to detect bundle changes 
+- [ ] review diff / merge capabilities of VS Code (context of reimplems)
 ... none ... we're nearly there !
+
+      - Script de démo:
+         - Presentation de VS Code
+            - Extension eWam (marketplace)
+            - Gestion du multiworkspace
+
+         - Environnement Wynsure classique
+         - Lancer le service eWam
+         - Install extension
+         - Open Workspace Folder
+         / Synchroniser
+         - Présenter repository : .dependencies .unbundled etc.
+         - Ouvrir une classe ou nouvelle classe
+         / CheckOut / Checkin
+
+         - Coding :
+            - Parse
+               - Errors
+            - Run
+            - Suggestions
+            - Signature Help
+            - Snipppets
+            - Scenario Edition
+
+         - Navigation : 
+            - Tooltips
+            - Goto / Peek definition
+            - Document symbols
+            - Find all occurences
+            - Text search
+            - Class documentation
+
+         - Class tree
+         
+         - Fonctionnalités de debug : breakpoint
+
+         - déploiement : quelques dev alpha
+            - accompagnement tutoriel
 
 ## Upcoming tasks
 

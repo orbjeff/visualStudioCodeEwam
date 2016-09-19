@@ -1,19 +1,19 @@
 {
   "name": "goldserver",
   "description": "",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "author": "mphasiswyde",
   "license": "MIT",
   "engines": {
     "node": "*"
   },
   "dependencies": {
-		"vscode-languageserver": "^2.2.1",
-    "request-promise": "^4.0.2"
+		"vscode-languageserver": "^2.5.0",
+    "request-promise": "^4.1.1"
 	},
   "devDependencies": {
     "typescript": "^1.8.10",
-    "vscode": "^0.11.14"
+    "vscode": "^0.11.18"
   },
   "scripts": {
     "compile": "installServerIntoExtension ../client ./package.json ./tsconfig.json && tsc -p .",

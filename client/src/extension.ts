@@ -68,16 +68,160 @@ let extensionContext : vscode.ExtensionContext;
 // Whatching files:
 // fs.watch(...)
 
+function getCommands () : any {
+    return vscode.commands.getCommands(false).then( (commands : string[]) => {
+        // vscode.window.showQuickPick(commands);
+        // var leftFile : vscode.Uri = new vscode.Uri();
+        // var rightFile : vscode.Uri = new vscode.Uri();
+        // leftFile.fsPath = "file://D:\Desktop\hotspot_UP.bat";
+        // rightFile.fsPath = "file://D:\Desktop\hotspot_DOWN.bat";
+        vscode.commands.executeCommand(
+            "vscode.diff",
+            {   
+                left: "file://D:\Desktop\hotspot_UP.bat",
+                right: "file://D:\Desktop\hotspot_DOWN.bat",
+                title: "Yo Bro"
+            }
+        );
 
-function buildDependenciesRepo() {
+        return commands;
+    });
+}
+
+function SyncAll() {
+
+    SyncTGV().then( (result : any) => {
+        SyncGit().then( () => {
+            buildDependenciesRepo().then( (result : any) => {});
+        });
+
+        buildDependenciesRepo().then( (result : any) => {});
+    });
+}
+
+function getMethodAtLine(line: number,  doc? : vscode.TextDocument) : Thenable<string> {
+
+    if (!doc) {
+        doc  = vscode.window.activeTextEditor.document;
+    }
+
+    return languageClient.sendRequest(
+        { method: "getMethodAtLine" },
+        {
+            "classname": getOpenClassName(doc),
+            "line": line
+        } 
+    )
+    .then(
+        (methodName : string) => {
+            // console.log("... " + methodName);
+            return methodName;
+        }
+    );
+}
+
+function runContext() {
+    // Get Context (class name, method name)
+    let activeEditor : vscode.TextEditor = vscode.window.activeTextEditor;
+
+    if (activeEditor == undefined || activeEditor == null || !activeEditor)
+        return;
+    
+    let cursorPosition : vscode.Selection = activeEditor.selection;
+
+    let className : string = getOpenClassName(activeEditor.document);
+
+    getMethodAtLine(cursorPosition.start.line, activeEditor.document)
+    .then( (methodName : string) => {
+
+        vscode.window.showQuickPick(
+            [
+                "try class",
+                "try method",
+                "try scenario"
+            ]
+        ).then( (choice : string) => {
+
+            config = vscode.workspace.getConfiguration('ewam');
+
+            if (choice == "try class") {
+
+                axios.post(config.get('url') + '/api/rest/tryClass/' + className, {})
+                .then( (response : any) => {
+                    
+                })
+                .catch( (response : any) => {
+                    console.log(response);
+                });
+
+            } else if (choice == "try method") {
+
+                axios.post(config.get('url') + '/api/rest/tryMethod/' + className + '/' + methodName, {})
+                .then( (response : any) => {
+                    
+                })
+                .catch( (response : any) => {
+                    console.log(response);
+                });
+
+            } else if (choice == "try scenario") {
+
+                axios.get(config.get('url') + '/api/rest/classOrModule/' + className + '/scenarios', {})
+                .then( (response : any) => {
+                    vscode.window.showQuickPick(response.data)
+                    .then((selection) => {
+                        axios.post(config.get('url') + '/api/rest/tryScenario/' + className + '/' + selection["label"], {})
+                    });
+                })
+                .catch( (response : any) => {
+                    console.log(response);
+                });
+
+            }
+
+            console.log(choice);
+        });
+        
+        // Ask what run wanted : 
+        //  - class
+        //      -> ask current class or other class
+        //      -> other class : list of classes
+        //  - method
+        //      -> list method with current method on top
+        //  - scenario
+        //      -> list scenarios
+        // in case of scenario show
+
+    });
+
+}
+
+function SyncGit() : any {
+    vscode.window.showInformationMessage("Synchronizing git...");
+    return vscode.commands.executeCommand("workbench.action.git.sync").then( () => {
+        vscode.window.showInformationMessage("Git sync done.");
+    });
+}
+
+function SyncTGV() : any {
+    vscode.window.showInformationMessage(
+        "Syncing your environment's TGVs...");
+    
+    return axios.post(config.get('url') + '/api/rest/repository/synchronize', {})
+    .then( (response : any) => {
+        vscode.window.showInformationMessage("TGV sync done.");
+    });
+}
+
+function buildDependenciesRepo() : any {
     vscode.window.showInformationMessage(
         "Loading dependencies, this may take a few minutes, please be patient...");
-
-        vscode.window.showInformationMessage(
-            "You will be notified when loading is finished.");
     
-    languageClient.sendRequest({ method: "buildDependenciesRepo" }, {})
-    .then( (params: any ) => {
+    vscode.window.showInformationMessage(
+        "You will be notified when loading is finished.");
+    
+    return languageClient.sendRequest({ method: "buildDependenciesRepo" }, {})
+    .then( (params : any) => {
         vscode.window.showInformationMessage("Finished loading dependencies.");
     });
 }
@@ -115,7 +259,7 @@ function downloadFile() {
             file.write(data);
         }).on('end', function() {
             file.end();
-            console.log(file_name + ' downloaded to ' + DOWNLOAD_DIR);
+            // console.log(file_name + ' downloaded to ' + DOWNLOAD_DIR);
         });
     });
 }
@@ -232,7 +376,7 @@ function checkInClass(name: string) {
     config = vscode.workspace.getConfiguration('ewam');
     axios.post(config.get('url') + '/api/rest/classOrModule/' + name + '/checkIn', {})
         .then(function(response) {
-            console.log(vscode.workspace.rootPath);
+            // console.log(vscode.workspace.rootPath);
             var fileName = vscode.workspace.rootPath + '\\' + name + EXTENSION;
 
             const spawn = require('child_process').spawn;
@@ -304,7 +448,6 @@ function parse(notifyNewSource: Boolean = false, doc? : vscode.TextDocument) {
                     var range: vscode.Range = new vscode.Range(start, end);
                     
                     editBuilder.replace(range, params.newSource);
-                    refreshUI();
                     parseBarItem.color = 'white';
                 }
             );
@@ -316,6 +459,8 @@ function parse(notifyNewSource: Boolean = false, doc? : vscode.TextDocument) {
                 vscode.Uri.parse('ewam://modules/' + moduleName + '/module-preview'));
         }
     );
+    
+    refreshUI();
 }
 
 function save(notifyNewSource: Boolean = false, doc? : vscode.TextDocument) {
@@ -407,7 +552,7 @@ function classTree() {
 
     axios.post(config.get('url') + '/api/rest/classOrModule/' + moduleName + '/showInTree')
         .then(function(response) {
-            console.log(response);
+            // console.log(response);
         })
         .catch(function(response) {
             console.log(response);
@@ -483,22 +628,33 @@ function getScenario(classname: string, callBack: getScenarioCallBack) {
         });
 }
 
-function newClass() {
-    vscode.window.showInputBox({ prompt: 'Parent class name', value: '' })
-        .then(parent => {
-            if (parent != undefined) {
-                vscode.window.showInputBox({ prompt: 'Class name', value: '' })
-                    .then(name => {
-                        if (name != undefined) {
-                            axios.put(config.get('url') + '/api/rest/classOrModule/', { content: '', ancestor: parent, name: name })
-                                .then(function(response) {
-                                    console.log(response);
-                                    openClass(name);
-                                });
-                        }
-                    });
+function newClass(parentClass : string) {
+    if (parentClass != undefined) {
+        vscode.window.showInputBox({ prompt: 'Class name', value: '' })
+        .then(name => {
+            if (name != undefined) {
+                axios.put(config.get('url') + '/api/rest/classOrModule/', { content: '', ancestor: parentClass, name: name })
+                .then(function(response) {
+                    // console.log(response);
+                    openClass(name);
+                });
             }
         });
+    }
+
+}
+
+function newModule() {
+    vscode.window.showInputBox({ prompt: 'Module name', value: '' })
+    .then(name => {
+        if (name != undefined) {
+            axios.put(config.get('url') + '/api/rest/classOrModule/', { content: '', ancestor: '', name: name })
+            .then(function(response) {
+                // console.log(response);
+                openClass(name);
+            });
+        }
+    });
 }
 
 function editScenario(classname: string, scenarioName: string) {
@@ -531,30 +687,40 @@ function metaInfo() {
                         vscode.window.showQuickPick(getDataAsTable(response)).then(selected => {
                             if (selected != undefined) {
                                 if (choice == 'Variables') {
-                                    vscode.window.showQuickPick(['Override']).then(action => {
-
-                                    });
+                                    // vscode.window.showQuickPick(['Override']).then(action => {
+                                    //     axios.get(config.get('url') + choice)
+                                    //     .then(variable => {
+                                    //         editor = vscode.window.activeTextEditor;
+                                    //         editor.edit(editBuilder => {
+                                    //             // var start = new vscode.Position(0, 0);                                                         
+                                    //             // var end = new vscode.Position(0, 1);
+                                    //             // var range = new vscode.Range(start, end);
+                                    //             var selection = editor.selection;
+                                    //             editBuilder.replace(selection, "\n" + getDataAsString(variable) + " override\n");
+                                    //         });
+                                    //     });
+                                    // });
                                 } else if (choice == 'Methods') {
                                     vscode.window.showQuickPick(['Override', 'Toggle Break Point']).then(action => {
                                         if (action == 'Toggle Break Point') {
                                             axios.post(config.get('url') + selected.location + '/breakPoint', {})
-                                                .then(function(method) {
-                                                    refreshUI();
-                                                });
+                                            .then(function(method) {
+                                                refreshUI();
+                                            });
                                         } else if (action == 'Override') {
                                             axios.get(config.get('url') + selected.location)
-                                                .then(function(method) {
+                                            .then(function(method) {
 
-                                                    editor = vscode.window.activeTextEditor;
-                                                    editor.edit(editBuilder => {
-                                                        // var start = new vscode.Position(0, 0);                                                         
-                                                        // var end = new vscode.Position(0, 1);
-                                                        // var range = new vscode.Range(start, end);
-                                                        var selection = editor.selection;
-                                                        editBuilder.replace(selection, getDataAsString(method));
-                                                    }
-                                                    );
-                                                });
+                                                editor = vscode.window.activeTextEditor;
+                                                editor.edit(editBuilder => {
+                                                    // var start = new vscode.Position(0, 0);                                                         
+                                                    // var end = new vscode.Position(0, 1);
+                                                    // var range = new vscode.Range(start, end);
+                                                    var selection = editor.selection;
+                                                    editBuilder.replace(selection, "\n" + getDataAsString(method) + " override\nend\n");
+                                                }
+                                                );
+                                            });
                                         }
                                     });
                                 } else if (choice == 'Parents' || choice == 'Descendants' || choice == 'Sisters') {
@@ -600,7 +766,7 @@ function interact(uri: string) {
  * @return the class name selected.
  * when the message was dismissed.
  */
-function searchClass(callBackFunc: searchClassCallBack) {
+function searchClass(callBackFunc: searchClassCallBack, promptText : string = 'Class name or criteria') {
     var editor = vscode.window.activeTextEditor;
     var text = '';
     if (!editor) {
@@ -611,7 +777,7 @@ function searchClass(callBackFunc: searchClassCallBack) {
     }
 
     config = vscode.workspace.getConfiguration('ewam');
-    vscode.window.showInputBox({ prompt: 'Class name or criteria', value: text })
+    vscode.window.showInputBox({ prompt: promptText, value: text })
         .then(criteria => {
             axios.get(config.get('url') + '/api/rest/searchEntities',
                 {
@@ -620,7 +786,7 @@ function searchClass(callBackFunc: searchClassCallBack) {
                     }
                 })
                 .then(function(response) {
-                    console.log(response);
+                    // console.log(response);
                     vscode.window.showQuickPick(getDataAsTable(response))
                         .then((selection) => {
                             if (selection != undefined) {
@@ -644,10 +810,9 @@ function searchClass(callBackFunc: searchClassCallBack) {
 function run() {
     config = vscode.workspace.getConfiguration('ewam');
     axios.post(config.get('url') + '/api/rest/run/' + config.get('className') + '/' + config.get('methodName'), config.get('args'))
-        .then(function(response) {
-        });
+    .then(function(response) {
+    });
 }
-
 
 export function activate(context: vscode.ExtensionContext) {
     
@@ -693,21 +858,21 @@ export function activate(context: vscode.ExtensionContext) {
             }
         
         } 
-// export interface ErrorHandler {
-//     /**
-//      * An error has occurred while writing or reading from the connection.
-//      *
-//      * @param error - the error received
-//      * @param message - the message to be delivered to the server if know.
-//      * @param count - a count indicating how often an error is received. Will
-//      *  be reset if a message got successfully send or received.
-//      */
-//     error(error: Error, message: Message, count: number): ErrorAction;
-//     /**
-//      * The connection to the server got closed.
-//      */
-//     closed(): CloseAction;
-// }
+        // export interface ErrorHandler {
+        //     /**
+        //      * An error has occurred while writing or reading from the connection.
+        //      *
+        //      * @param error - the error received
+        //      * @param message - the message to be delivered to the server if know.
+        //      * @param count - a count indicating how often an error is received. Will
+        //      *  be reset if a message got successfully send or received.
+        //      */
+        //     error(error: Error, message: Message, count: number): ErrorAction;
+        //     /**
+        //      * The connection to the server got closed.
+        //      */
+        //     closed(): CloseAction;
+        // }
     }
     
     // Create the language client and start the client.
@@ -840,9 +1005,15 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 
     disposable = vscode.commands.registerCommand('ewam.newClass', function() {
-        newClass();
+        searchClass(newClass, 'Parent class name');
     });
     context.subscriptions.push(disposable);
+
+    disposable = vscode.commands.registerCommand('ewam.newModule', function() {
+        newModule();
+    });
+    context.subscriptions.push(disposable);
+
     disposable = vscode.commands.registerCommand('ewam.metaInfo', function() {
         metaInfo();
     });
@@ -852,15 +1023,17 @@ export function activate(context: vscode.ExtensionContext) {
         getScenario(getOpenClassName(), editScenario);
     });
     context.subscriptions.push(disposable);
-    ;
+    
     disposable = vscode.commands.registerCommand('ewam.run', function() {
         run();
     });
     context.subscriptions.push(disposable);
+
     disposable = vscode.commands.registerCommand('ewam.classTree', function() {
         classTree();
     });
     context.subscriptions.push(disposable);
+
     disposable = vscode.commands.registerCommand('ewam.showModuleDocumentation', function() {
         let docPath = vscode.window.activeTextEditor.document.uri.path;
         var className = docPath.substring(
@@ -870,16 +1043,41 @@ export function activate(context: vscode.ExtensionContext) {
         return showModuleDocumentation(className);
     });
     context.subscriptions.push(disposable);
+
     disposable = vscode.commands.registerCommand('ewam.buildDependenciesRepo', function() {
         buildDependenciesRepo();
     });
     context.subscriptions.push(disposable);
+
     disposable = vscode.commands.registerCommand('ewam.syncWorkspaceRepo', function() {
         syncWorkspaceRepo();
     });
     context.subscriptions.push(disposable);
-    
 
+    disposable = vscode.commands.registerCommand('ewam.try', function() {
+        runContext();
+    });
+    context.subscriptions.push(disposable);
+
+    disposable = vscode.commands.registerCommand('ewam.syncTGV', function() {
+        SyncTGV();
+    });
+    context.subscriptions.push(disposable);
+
+    disposable = vscode.commands.registerCommand('ewam.syncAll', function() {
+        SyncAll();
+    });
+    context.subscriptions.push(disposable);
+
+    disposable = vscode.commands.registerCommand('ewam.syncGit', function() {
+        SyncGit();
+    });
+    context.subscriptions.push(disposable);
+    
+    disposable = vscode.commands.registerCommand('ewam.getCommands', function() {
+        getCommands();
+    });
+    context.subscriptions.push(disposable);
     
     parseBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     parseBarItem.text = '$(beaker) Parse'
@@ -981,7 +1179,7 @@ export function activate(context: vscode.ExtensionContext) {
     
     vscode.workspace.onDidOpenTextDocument(
         (document : vscode.TextDocument) => {
-            console.log('opened document ' + document.fileName + '\n');
+            // console.log('opened document ' + document.fileName + '\n');
             if (document.languageId == "gold") {
                 // console.log('... a Gold document !');
                 parse(false, document);
@@ -991,7 +1189,7 @@ export function activate(context: vscode.ExtensionContext) {
     
     vscode.window.onDidChangeActiveTextEditor( 
         (editor : vscode.TextEditor) => {
-            console.log('focus on document ' + editor.document.fileName + '\n');
+            // console.log('focus on document ' + editor.document.fileName + '\n');
             if (editor.document.languageId == "gold") {
                 // console.log('... a Gold document !');
                 parse(false, editor.document);

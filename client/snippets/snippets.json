@@ -13,62 +13,188 @@
 		"description": "Log output to console"
 	}
 */
-    "If-else-elseif-endif": {
+    "if else": {
+        "prefix": "if else",
+        "body": [
+            "if ${condition}",
+            "  ${content1}",
+            "else",
+            "  ${content2}",
+            "endIf"
+        ],
+        "description": "if [condition] ... else ... endIf"
+    },
+    "if": {
         "prefix": "if",
         "body": [
             "if ${condition}",
             "  ${content}",
-            "elseif ${condition}",
-            "  ${content}",
-            "else",
-            "  ${content}",
             "endIf"
         ],
-        "description": "Foreach loop"
+        "description": "if [condition] ... endIf"
     },
-    "For Loop": {
+    "if elseif else": {
+        "prefix": "if elseif else",
+        "body": [
+            "if ${condition1}",
+            "  ${content1}",
+            "elseif ${condition2}",
+            "  ${content2}",
+            "else",
+            "  ${content3}",
+            "endIf"
+        ],
+        "description": "if [condition] ... elseif [condition] ... else ... endIf"
+    },
+    "foreach": {
         "prefix": "foreach",
         "body": [
             "foreach ${object} in ${list} ",
             "  ${content}",
             "endFor"
         ],
-        "description": "Foreach loop"
+        "description": "foreach [item] in [list] ... endFor"
     },
-    "RefToO": {
-        "prefix": "refto O",
+    "repeat until": {
+        "prefix": "repeat until",
         "body": [
-            "[model(Text:'${name}')]",
-            "[type:model(SingleRole:(WhatCanIDo:(CanModif:false,CanCreate:false),RoleClass:'aSingleRoleType'))]",
-            "${name} : RefTo[O] ${target} inverse myOwner multiLang"
+            "repeat",
+            "   ${content}",
+            "until ${condition}"
         ],
-        "description": "RefTo Owner"
+        "description": "repeat ... until [condition]"
     },
-    "RefToPA": {
+    "while": {
+        "prefix": "while",
+        "body": [
+            "while ${condition}",
+            "   ${content}",
+            "endWhile"
+        ],
+        "description": "while [condition] ... endWhile"
+    },
+    "refto": {
+        "prefix": "refto",
+        "body": [
+            "[model(Text:'')]",
+            "[type:model(Text:'',StillsOnFreeze:true,FreezeRefObject:false,StoreExtract:false,",
+            "ExtractKind:FullExtract,ExtractParam:0,ExtractMaxSize:0,SingleRole:(WhatCanIDo:",
+            "(CanConsult:true,CanModif:true,CanCreate:true,CanSearch:true,CanDelete:true,",
+            "CanReceive:false,NoFinal:true,PickOldVersion:false,ByPassSelection:false,",
+            "DBRefreshOnConsult:false),AcceptDescendant:true,CreateDescendants:false,",
+            "OnlyDescendants:false,InChargeOfDeletingBackRef:true,RoleClass:'',",
+            "ConsultScenario:'',CreateScenario:'',ModifyScenario:'',PickerClass:'',",
+            "PickerScenario:'',MultiRole:null)]",
+            "${name} : RefTo [${modifiers}] ${class} inverse ${backRef} multiLang"
+        ],
+        "description": "[variable] : refto [modifiers] [class] inverse [backref]"
+    },
+    "refto Owner": {
+        "prefix": "refto owner",
+        "body": [
+            "[model(Text:'${label}')]",
+            "[type:model(SingleRole:(WhatCanIDo:(CanSearch:false),RoleClass:'aSingleRoleType'))]",
+            "${name} : RefTo [O] ${class} inverse myOwner multiLang"
+        ],
+        "description": "[variable] : refto [O] [class] inverse myOwner"
+    },
+    "refto PA": {
         "prefix": "refto PA",
         "body": [
-            "[model(Text:'${name}')]",
+            "[model(Text:'${label}')]",
             "[type:model(SingleRole:(WhatCanIDo:(CanModif:false,CanCreate:false),RoleClass:'aSingleRoleType'))]",
-            "${name} : RefTo[P,A] ${target} multiLang"
+            "${name} : RefTo [P,A] ${class} multiLang"
         ],
-        "description": "RefTo PA"
+        "description": "[variable] : refto [P,A] [class] inverse [backref]"
     },
-    "ListOfPA": {
+    "listOf": {
+        "prefix": "listOf",
+        "body": [
+            "[model(Text:'${label}')]",
+            "[type:model(SingleRole:(WhatCanIDo:(CanModif:false,CanCreate:false),RoleClass:'aSingleRoleType'))]",
+            "${name} : listOf [${modifiers}] ${class} inverse ${backref} multiLang"
+        ],
+        "description": "[variable] : listOf [modifiers] [class] inverse [backref]"
+    },
+    "listOf PA": {
         "prefix": "listOf PA",
         "body": [
-            "[model(Text:'${name}')]",
+            "[model(Text:'${label}')]",
             "[type:model(SingleRole:(WhatCanIDo:(CanModif:false,CanCreate:false),RoleClass:'aSingleRoleType'))]",
-            "${name} : ListOf [P,A] ${target} multiLang"
+            "${name} : ListOf [P,A] ${class} multiLang"
         ],
-        "description": "ListOf PA"
+        "description": "[variable] : listOf [P,A] [class]"
     },
-    "StringExtract": {
-        "prefix": "StringExtract()",
+    "listOf Owner": {
+        "prefix": "listOf Owner",
         "body": [
-            "function StringExtract(Kind : tExtractKind, Param : Int1, MaxSize : Int4) return CString override",
-            "  _Result = inherited self.StringExtract(Kind, Param, MaxSize)",
-            "end"
+            "[model(Text:'${label}')]",
+            "[type:model(SingleRole:(WhatCanIDo:(CanModif:false,CanCreate:false),RoleClass:'aSingleRoleType'))]",
+            "${name} : ListOf [O] ${class} multiLang"
         ],
-        "description": "String Extract"
+        "description": "[variable] : listOf [O] [class] inverse myOwner"
+    },
+    "type enum": {
+        "prefix": "type enum",
+        "body": [
+            "type ${enumName} : (",
+            "    [model(Text:'${valuename1}')] ${value1},", 
+            "    [model(Text:'${valuename2}')] ${value2},",
+            "    [model(Text:'${valuename3}')] ${value3},", 
+            ")"
+        ],
+        "description": "type [enumName] : ( ... )"
+    },
+    "type record": {
+        "prefix": "type record",
+        "body": [
+            "type ${recordTypeName} : record",
+            "    ${field1} : ${fieldtype1}",
+            "    ${field2} : ${fieldtype2}",
+            "endRecord"
+        ],
+        "description": "type [recordName] record ... endRecord"
+    },
+    "type record override": {
+        "prefix": "type record override",
+        "body": [
+            "type ${recordTypeName} : record(${overrideRecord})",
+            "    ${field1} : ${fieldtype1}",
+            "    ${field2} : ${fieldtype2}",
+            "endRecord"
+        ],
+        "description": "type [recordName] record ... endRecord"
+    },
+    "type sequence": {
+        "prefix": "type sequence",
+        "body": [
+            "type ${sequenceTypeName} : sequence of ${sequenceItemType}"
+        ],
+        "description": "type [sequenceName] : sequence of [itemType]"
+    },
+    "procedure": {
+        "prefix": "proc",
+        "body": [
+            "procedure ${procname}(${param1} : ${paramtype1}, ${param2} : ${paramtype2}, ...)",
+            "   ${content}",
+            "endProc"
+        ],
+        "description": "procedure [procName] ( ... ) ... endProc"
+    },
+    "fucntion": {
+        "prefix": "func",
+        "body": [
+            "function ${funcname}(${param1} : ${paramtype1}, ${param2} : ${paramtype2}, ...) return ${returntype}",
+            "   ${content}",
+            "endFunc"
+        ],
+        "description": "function [funcName] ( ... ) return [returnType] ... endFunc"
+    },
+    "var": {
+        "prefix": "var",
+        "body": [
+            "var ${varName} : ${varType}"
+        ],
+        "description": "function [funcName] ( ... ) return [returnType] ... endFunc"
     }
 }
