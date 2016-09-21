@@ -68,23 +68,22 @@ let extensionContext : vscode.ExtensionContext;
 // Whatching files:
 // fs.watch(...)
 
-function getCommands () : any {
+function diffTest () : any {
     return vscode.commands.getCommands(false).then( (commands : string[]) => {
         // vscode.window.showQuickPick(commands);
-        // var leftFile : vscode.Uri = new vscode.Uri();
-        // var rightFile : vscode.Uri = new vscode.Uri();
-        // leftFile.fsPath = "file://D:\Desktop\hotspot_UP.bat";
-        // rightFile.fsPath = "file://D:\Desktop\hotspot_DOWN.bat";
-        vscode.commands.executeCommand(
-            "vscode.diff",
-            {   
-                left: "file://D:\Desktop\hotspot_UP.bat",
-                right: "file://D:\Desktop\hotspot_DOWN.bat",
-                title: "Yo Bro"
-            }
-        );
+        var leftFile : vscode.Uri = vscode.Uri.parse("file:///D:\\Desktop\\hotspot_UP.bat");
+        var rightFile : vscode.Uri = vscode.Uri.parse("file:///D:\\Desktop\\hotspot_DOWN.bat");
 
-        return commands;
+        vscode.window.activeTextEditor.document.uri
+
+        return vscode.commands.executeCommand(
+            "vscode.diff",
+            leftFile,
+            rightFile,
+            "Yo Bro"
+        ).then((result) => {});
+
+        // return commands;
     });
 }
 
@@ -131,68 +130,74 @@ function runContext() {
 
     let className : string = getOpenClassName(activeEditor.document);
 
-    getMethodAtLine(cursorPosition.start.line, activeEditor.document)
-    .then( (methodName : string) => {
+    vscode.window.showQuickPick(
+        [
+            "try class",
+            "try method",
+            "try scenario"
+        ]
+    ).then( (choice : string) => {
 
-        vscode.window.showQuickPick(
-            [
-                "try class",
-                "try method",
-                "try scenario"
-            ]
-        ).then( (choice : string) => {
+        config = vscode.workspace.getConfiguration('ewam');
 
-            config = vscode.workspace.getConfiguration('ewam');
+        if (choice == "try class") {
 
-            if (choice == "try class") {
+            axios.post(config.get('url') + '/api/rest/tryClass/' + className, {})
+            .then( (response : any) => {
+                
+            })
+            .catch( (response : any) => {
+                console.log(response);
+            });
 
-                axios.post(config.get('url') + '/api/rest/tryClass/' + className, {})
-                .then( (response : any) => {
-                    
-                })
-                .catch( (response : any) => {
-                    console.log(response);
-                });
+        } else if (choice == "try method") {
 
-            } else if (choice == "try method") {
+            getMethodAtLine(cursorPosition.start.line, activeEditor.document)
+            .then( (methodName : string) => {
+                if (methodName == "") {
 
-                axios.post(config.get('url') + '/api/rest/tryMethod/' + className + '/' + methodName, {})
-                .then( (response : any) => {
-                    
-                })
-                .catch( (response : any) => {
-                    console.log(response);
-                });
+                    vscode.window.showWarningMessage("Cursor doesn't seem to be on a method. Place the cursor on the method you want to test.")
 
-            } else if (choice == "try scenario") {
+                } else {
 
-                axios.get(config.get('url') + '/api/rest/classOrModule/' + className + '/scenarios', {})
-                .then( (response : any) => {
-                    vscode.window.showQuickPick(response.data)
-                    .then((selection) => {
-                        axios.post(config.get('url') + '/api/rest/tryScenario/' + className + '/' + selection["label"], {})
+                    axios.post(config.get('url') + '/api/rest/tryMethod/' + className + '/' + methodName, {})
+                    .then( (response : any) => {
+                        
+                    })
+                    .catch( (response : any) => {
+                        console.log(response);
                     });
-                })
-                .catch( (response : any) => {
-                    console.log(response);
+
+                }
+            });
+
+        } else if (choice == "try scenario") {
+
+            axios.get(config.get('url') + '/api/rest/classOrModule/' + className + '/scenarios', {})
+            .then( (response : any) => {
+                vscode.window.showQuickPick(response.data)
+                .then((selection) => {
+                    axios.post(config.get('url') + '/api/rest/tryScenario/' + className + '/' + selection["label"], {})
                 });
+            })
+            .catch( (response : any) => {
+                console.log(response);
+            });
 
-            }
+        }
 
-            console.log(choice);
-        });
-        
-        // Ask what run wanted : 
-        //  - class
-        //      -> ask current class or other class
-        //      -> other class : list of classes
-        //  - method
-        //      -> list method with current method on top
-        //  - scenario
-        //      -> list scenarios
-        // in case of scenario show
-
+        console.log(choice);
     });
+    
+    // Ask what run wanted : 
+    //  - class
+    //      -> ask current class or other class
+    //      -> other class : list of classes
+    //  - method
+    //      -> list method with current method on top
+    //  - scenario
+    //      -> list scenarios
+    // in case of scenario show
 
 }
 
@@ -348,8 +353,8 @@ function openClass(name: string) {
             {
                 if (err) throw err;
 
-                var configDocument = vscode.workspace.openTextDocument(fileName);
-                configDocument.then(function(document) {
+                vscode.workspace.openTextDocument(fileName)
+                .then( (document) => {
                     vscode.window.showTextDocument(document);
                     refreshUI();
                 });
@@ -637,6 +642,9 @@ function newClass(parentClass : string) {
                 .then(function(response) {
                     // console.log(response);
                     openClass(name);
+                })
+                .catch( (error) => {
+                    vscode.window.showWarningMessage("Class couldn't be created, check the class name is correct and doesn't already exist.")
                 });
             }
         });
@@ -1074,8 +1082,8 @@ export function activate(context: vscode.ExtensionContext) {
     });
     context.subscriptions.push(disposable);
     
-    disposable = vscode.commands.registerCommand('ewam.getCommands', function() {
-        getCommands();
+    disposable = vscode.commands.registerCommand('ewam.diffTest', function() {
+        diffTest();
     });
     context.subscriptions.push(disposable);
     

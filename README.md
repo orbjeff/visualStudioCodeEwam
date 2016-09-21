@@ -161,10 +161,12 @@ Additional tasks :
 
 - [ ] Produce a video presenting all the features
 
-## Alpha 0.2.6 - *Deliver on September 26, 2016*
+## Alpha 0.2.6 - *Deliver on September 21, 2016*
     
 - [x] Overriding
 - [ ] Add a simple scenario
+- [x] review diff / merge capabilities of VS Code (context of reimplems) : we diff whatever we want, using URI, so it could even be a content provider I expect
+- [ ] Produce a video presenting all the features
 
 - Bug fixes and ergonomy
     - [ ] API performance (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled, due to serializer)
@@ -175,64 +177,114 @@ Additional tasks :
         - [x] Breakpoint UI refreshing
     - [x] New class : wrong parent (also check new module)
         - [x] + improved new class input (choose parent class from a suggestion list)
+        - [x] Crash when class already exist : used IsValid
     - [x] Repair Run Application
     - [/] Add Open IDE feature
     - [x] Clean debug outputs
-    - [ ] Lookup API crashes
+    - [x] Lookup API crashes
 
+## Alpha 0.2.7 - *Deliver on September 26, 2016*
+
+- [ ] Add a simple scenario
 - [ ] Improve "Find references" feature to provide position in file (use metainfo or maybe ewam-open:// URL ?)
     - [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs (might be useful in documentation or when accessing an entity we don't know the position yet).
-- [ ] Add watch on bundleIndex.json in order to detect bundle changes 
-- [ ] review diff / merge capabilities of VS Code (context of reimplems)
-
+- [ ] Add watch on bundleIndex.json in order to detect bundle changes
+- [ ] Review APIs to use IsValid when necessary
 - [ ] Produce a video presenting all the features
 
+- Bug fixes and ergonomy
+    - [ ] API performance (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled, due to serializer)
+        - use Florian's serializer for simple records
+        - maybe cache metainfo in local file
 
-## Remaining tasks before POC release
-
-- [ ] Improve "Find references" feature to provide position in file (use metainfo or maybe ewam-open:// URL ?)
-    - [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs (might be useful in documentation or when accessing an entity we don't know the position yet).
-- [ ] Add watch on bundleIndex.json in order to detect bundle changes 
-- [ ] review diff / merge capabilities of VS Code (context of reimplems)
 ... none ... we're nearly there !
 
-      - Script de démo:
-         - Presentation de VS Code
-            - Extension eWam (marketplace)
-            - Gestion du multiworkspace
+## Demo script
 
-         - Environnement Wynsure classique
-         - Lancer le service eWam
-         - Install extension
-         - Open Workspace Folder
-         / Synchroniser
-         - Présenter repository : .dependencies .unbundled etc.
-         - Ouvrir une classe ou nouvelle classe
-         / CheckOut / Checkin
+    - Presentation de VS Code
+        - Extension eWam (marketplace)
+        - Gestion du multiworkspace
 
-         - Coding :
-            - Parse
-               - Errors
-            - Run
-            - Suggestions
-            - Signature Help
-            - Snipppets
-            - Scenario Edition
+    - Environnement Wynsure classique
+    - Lancer le service eWam
+    - Install extension
+    - Open Workspace Folder
+    / Synchroniser
+    - Présenter repository : .dependencies .unbundled etc.
+    - Ouvrir une classe ou nouvelle classe (aApplicativeRoot)
+    / CheckOut / Checkin
 
-         - Navigation : 
-            - Tooltips
-            - Goto / Peek definition
-            - Document symbols
-            - Find all occurences
-            - Text search
-            - Class documentation
+    - Coding :
+        - Parse
+            - Errors
+        - Snipppets
+        - Suggestions
+        - Signature Help
+        - Run
+        - Commenting
+        - Scenario Edition
 
-         - Class tree
-         
-         - Fonctionnalités de debug : breakpoint
+    - Navigation : 
+        - Tooltips
+        - Goto / Peek definition
+            => aWFClient
+        - Document symbols
+            => GetLogin
+        - Class documentation
+        - Text search
+            => text search "GetLogin"
+        - Find all occurences
+            => GetLogin of aWFActor
 
-         - déploiement : quelques dev alpha
-            - accompagnement tutoriel
+    - Class tree
+
+    - Fonctionnalités de debug : breakpoint
+
+    - déploiement : quelques dev alpha
+        - accompagnement tutoriel
+
+------------------------
+
+    ; aRedgisDemo (aApplicativeRoot) (Def Version:20) (Implem Version:20)
+
+    class aRedgisDemo (aApplicativeRoot) 
+
+    uses aWFDesc
+
+    type recordTypeName : record
+        field1 : Int4
+        field2 : Int4
+    endRecord
+    type recordTypeName2 : record (recordTypeName)
+        field3 : Int4
+        field4 : Int8
+    endRecord
+    type sequenceTypeName : sequence of recordTypeName2
+
+    [model(Text:'Assocoated Desc')]
+    [type:model(SingleRole:(WhatCanIDo:(CanSearch:false),RoleClass:'aSingleRoleType'))]
+    description : refTo [O] aWFDesc inverse MyOwner multiLang
+
+
+    procedure HelloWorld(Message1 : CString, Message2 : CString)
+        uses aWFClient, Motor
+        
+        var recVar : recordTypeName2
+        var client : aWFClient
+        var login : CString
+        var res : Int4
+        
+        Alert(Message1 + Message2)
+        client = Motor.NewInstFromName('aWFClient')
+        login = client.GetLogin
+        ; res = Risky.CallWithMyStackEx(Nil, Nil, 0, 0, Nil)
+        self.description = Nil
+    endProc 
+
+------------------------
+
+
+
 
 ## Upcoming tasks
 

@@ -2,7 +2,7 @@
     "name": "ewamvscadaptor",
     "displayName": "eWamVSCAdaptor",
     "description": "e-Wam Visual Studio Adaptor",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "publisher": "mphasiswyde",
     "galleryBanner": {
         "color": "#5c2d91",
@@ -186,8 +186,8 @@
                 "title": "eWam: Sync Git"
             },
             {
-                "command": "ewam.getCommands",
-                "title": "eWam: Get Commands"
+                "command": "ewam.diffTest",
+                "title": "eWam: Diff Test"
             }
         ],
         "languages": [

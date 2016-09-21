@@ -677,6 +677,11 @@ function getMethodAtLine(className : string, line : number) : string | Thenable<
                 for (var index = 0; index < metainfo[className].methods.length; index++) {
 
                     method = metainfo[className].methods[index];
+
+                    if (method.range.startpos.line - 1 < line) {
+                        result = method.name;
+                    }
+
                     if (method.range.endpos.line - 1 > line) {
                         if (index > 0) {
                             result = metainfo[className].methods[index - 1].name;
@@ -685,7 +690,7 @@ function getMethodAtLine(className : string, line : number) : string | Thenable<
                     }
                 }
 
-                // connection.console.log(result);
+                connection.console.log("result: " + result);
                 return result;
             }
         );
@@ -695,6 +700,10 @@ function getMethodAtLine(className : string, line : number) : string | Thenable<
 
             method = metainfo[className].methods[index];
 
+            if (method.range.startpos.line - 1 < line) {
+                result = method.name;
+            }
+
             if (method.range.endpos.line - 1 > line) {
                 if (index > 0) {
                     result = metainfo[className].methods[index - 1].name;
@@ -703,8 +712,7 @@ function getMethodAtLine(className : string, line : number) : string | Thenable<
             }
         }
 
-        // connection.console.log(result);
-
+        connection.console.log("result: " + result);
         return result;
     }
 }
