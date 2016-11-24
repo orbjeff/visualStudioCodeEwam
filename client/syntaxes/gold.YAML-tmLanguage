@@ -43,10 +43,10 @@ patterns:
 - comment: Types
   match: '\b(Int1|Int2|Int4|Int8|Num8|Text|Pointer|CString|Decimal|Boolean|int|char|array|chr)\b'
   captures:
-    '1': {name: storage.type.gold}
+    '1': {name: storage.type}
 
 - comment: Types
-  name: storage.type.gold
+  name: storage.type
   match: '\b(num)\([0-9]+\)\b'
 
 - comment: General keywords
@@ -60,7 +60,7 @@ patterns:
     '1': {name: keyword.structure}
 
 - comment: Flow control keywords
-  match: '\b(if|then|elseIf|else|endIf|while|endWhile|for|to|downTo|forEach|endFor|repeat|until|loop|endLoop|break|try|catch|when|endWhen|finally|endTry|switch|endSwitch|when)\b'
+  match: '\b(if|then|elseIf|elseif|else|endIf|while|endWhile|for|to|downTo|forEach|endFor|repeat|until|loop|endLoop|break|try|catch|when|endWhen|finally|endTry|switch|endSwitch|when)\b'
   captures:
     '1': {name: keyword.control}
 
@@ -89,19 +89,27 @@ patterns:
   - name: constant.character
     match: '[#][0-9]{3}'
 
-# - comment: Function definition
-#   name: entity.other
-#   begin: '(function)\b([a-zA-Z][a-zA-Z0-9]*)\b(\(.*\))?\b(return)\b([a-zA-Z][a-zA-Z0-9]*)'
-#   end: '(endFunc)'
-#   beginCaptures:
-#     '2': {name: entity.name.function}
+- comment: Annotations #meta.tag.annotation #invalid.illegal
+  name: punctuation.definition.tag
+  begin: \[
+  end: \]
+  patterns:
+  - name: keyword.control
+    match: '(type:)'
 
-# - comment: Procedure definition
-#   name: entity.other
-#   begin: '(procedure)\b([a-zA-Z][a-zA-Z0-9]*)\b(\(.*\))?'
-#   end: '(endProc)'
-#   beginCaptures:
-#     '2': {name: entity.name.function}
+- comment: Function definition
+  name: entity.other
+  begin: '(function)\b([a-zA-Z][a-zA-Z0-9]*)\b(\(.*\))?\b(return)\b([a-zA-Z][a-zA-Z0-9]*)'
+  end: '(endFunc)'
+  beginCaptures:
+    '2': {name: entity.name.function}
+
+- comment: Procedure definition
+  name: entity.other
+  begin: '(procedure)\b([a-zA-Z][a-zA-Z0-9]*)\b'
+  end: '(endProc)'
+  beginCaptures:
+    '2': {name: entity.name.function}
 
 # - comment: Procedure definition
 #   name: meta.function.gold
