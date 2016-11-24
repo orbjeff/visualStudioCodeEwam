@@ -16,8 +16,9 @@ import {
 } from 'vscode-languageserver';
 
 import * as vscode from 'vscode';
-import * as rp from 'request-promise';
 import * as fs from 'fs';
+
+let rp = require('request-promise');
 
 // Create a connection for the server. The connection uses 
 // stdin / stdout for message passing

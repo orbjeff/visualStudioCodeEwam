@@ -21,9 +21,9 @@
    },
    "_comments_01": "vscode devDependencies : not supposed to appear here according to the sample, but needed to get the typings I think",
    "devDependencies": {
-      "typescript": "^2.0.3",
+      "typescript": "~2.0.10",
       "@types/node": "^6.0.40",
-      "vscode": "^1.0.1" 
+      "vscode": "^1.0.3"
    },
    "_comments_02": "postinstall: needed to get the typings, and requires the addition of above vscode devDependency ... ",
    "scripts": {
