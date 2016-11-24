@@ -46,6 +46,22 @@
         ],
         "description": "if [condition] ... elseif [condition] ... else ... endIf"
     },
+    "else": {
+        "prefix": "else",
+        "body": [
+            "else",
+            "  ${content}"
+        ],
+        "description": "else ..."
+    },
+    "elseif": {
+        "prefix": "elseif",
+        "body": [
+            "elseif ${condition}",
+            "  ${content}"
+        ],
+        "description": "elseif [condition] ..."
+    },
     "foreach": {
         "prefix": "foreach",
         "body": [
@@ -76,15 +92,33 @@
     "refto": {
         "prefix": "refto",
         "body": [
-            "[model(Text:'')]",
-            "[type:model(Text:'',StillsOnFreeze:true,FreezeRefObject:false,StoreExtract:false,",
-            "ExtractKind:FullExtract,ExtractParam:0,ExtractMaxSize:0,SingleRole:(WhatCanIDo:",
-            "(CanConsult:true,CanModif:true,CanCreate:true,CanSearch:true,CanDelete:true,",
-            "CanReceive:false,NoFinal:true,PickOldVersion:false,ByPassSelection:false,",
-            "DBRefreshOnConsult:false),AcceptDescendant:true,CreateDescendants:false,",
-            "OnlyDescendants:false,InChargeOfDeletingBackRef:true,RoleClass:'',",
-            "ConsultScenario:'',CreateScenario:'',ModifyScenario:'',PickerClass:'',",
-            "PickerScenario:'',MultiRole:null)]",
+            "[model(Text:''),",
+            "   type:model(",
+            "         Text:'',", 
+            "         StillsOnFreeze:true,",
+            "         FreezeRefObject:false,",
+            "         StoreExtract:false,",
+            "         ExtractKind:FullExtract,",
+            "         ExtractParam:0,",
+            "         ExtractMaxSize:0,",
+            "         SingleRole:(",
+            "            Text:'',",
+            "            WhatCanIDo:(CanConsult:true,CanModif:true,CanCreate:true,CanSearch:true,",
+            "               CanDelete:true,CanReceive:false,NoFinal:true,PickOldVersion:false,ByPassSelection:false,",
+            "               DBRefreshOnConsult:false),",
+            "            AcceptDescendant:true,",
+            "            CreateDescendants:false,",
+            "            OnlyDescendants:false,",
+            "            InChargeOfDeletingBackRef:true,",
+            "            RoleClass:'',",
+            "            ConsultScenario:'',",
+            "            CreateScenario:'',",
+            "            ModifyScenario:'',",
+            "            PickerClass:'',",
+            "            PickerScenario:''",
+            "         ),",
+            "         MultiRole:null",
+            "      )]",
             "${name} : RefTo [${modifiers}] ${class} inverse ${backRef} multiLang"
         ],
         "description": "[variable] : refto [modifiers] [class] inverse [backref]"

@@ -2,8 +2,6 @@
 // Import the module and reference it with the alias vscode in your code below
 'use strict';
 
-import * as path from 'path';
-
 import { LanguageClient, LanguageClientOptions, ErrorAction, CloseAction, SettingMonitor, ServerOptions, TransportKind }
     from 'vscode-languageclient';
 
@@ -14,11 +12,15 @@ import { languages, Diagnostic, DiagnosticSeverity, TextDocumentContentProvider 
 import * as vscode from 'vscode';
 import * as axios from 'axios';
 import * as fs from 'fs';
+import * as path from 'path';
 
-var url = require('url');
-var http = require('http');
-var exec = require('child_process').exec;
-var spawn = require('child_process').spawn;
+declare var require: any;
+
+let rp = require('request-promise');
+let url = require('url');
+let http = require('http');
+let exec = require('child_process').exec;
+let spawn = require('child_process').spawn;
 
 let EXTENSION = '.god';
 let scenarioBarItem: vscode.StatusBarItem;
@@ -36,6 +38,7 @@ let saving : boolean = false;
 let parsePlanned : boolean = false;
 let extensionContext : vscode.ExtensionContext;
 
+let fileWatcher : vscode.FileSystemWatcher;
 
 // Settings : 
 // // The settings interface describe the server relevant settings part
@@ -65,26 +68,87 @@ let extensionContext : vscode.ExtensionContext;
 // });
 
 
-// Whatching files:
-// fs.watch(...)
+function LoadMetaInfo(moduleName : string) {
+   return languageClient.sendRequest(
+        { method: "LoadMetaInfo" },
+        { param : {"moduleName": moduleName} } 
+    )
+    .then(
+        () => {}
+    );
+}
 
-function diffTest () : any {
-    return vscode.commands.getCommands(false).then( (commands : string[]) => {
-        // vscode.window.showQuickPick(commands);
-        var leftFile : vscode.Uri = vscode.Uri.parse("file:///D:\\Desktop\\hotspot_UP.bat");
-        var rightFile : vscode.Uri = vscode.Uri.parse("file:///D:\\Desktop\\hotspot_DOWN.bat");
+function RefreshMetaInfo(moduleName : string) {
+   return languageClient.sendRequest(
+        { method: "RefreshMetaInfo" },
+        { param : {"moduleName": moduleName} } 
+    )
+    .then(
+        () => {}
+    );
+}
 
-        vscode.window.activeTextEditor.document.uri
+function DeleteMetaInfo(moduleName : string) {
+   return languageClient.sendRequest(
+        { method: "DeleteMetaInfo" },
+        { param : {"moduleName": moduleName} } 
+    )
+    .then(
+        () => {}
+    );
+}
 
-        return vscode.commands.executeCommand(
+function dummyCommand() {
+   let cacheString : string = fs.readFileSync(vscode.workspace.rootPath + "\\.tmp\\ewamcache.json", 'utf8');
+   
+   console.log("dgfndfklgfdklgnkldfgn\n" + cacheString + "\nflsdjgdjhgdfhkh");
+}
+
+function compareFiles(localModulePath : string, moduleName : string, tgvSource : string) : any {
+
+   let leftFile : vscode.Uri = vscode.Uri.parse("file:" + vscode.workspace.rootPath + "/.tmp/" + moduleName + ".tgv.god");
+   let rightFile : vscode.Uri = vscode.Uri.parse("file:" + localModulePath + "/" + moduleName + ".god");
+
+   try {
+      if (fs.existsSync(leftFile.fsPath)) {
+         fs.unlinkSync(leftFile.fsPath);
+      }
+      fs.writeFileSync(leftFile.fsPath, tgvSource);
+      // setReadOnly(leftFile.fsPath);
+   } catch (writeError) {
+      console.log("Couldn't write " + leftFile.fsPath + " \n" + writeError);
+   }
+
+   let result : any;
+
+   try {
+      
+      let compareAlreadyOpen : Boolean = false;
+      
+      for (let index = 0; index < vscode.workspace.textDocuments.length; index++) {
+         let document : vscode.TextDocument = vscode.workspace.textDocuments[index];
+         if (document.fileName == leftFile.fsPath) {
+            compareAlreadyOpen = true;
+         }
+      }
+
+      if(!compareAlreadyOpen) {
+         vscode.window.showInformationMessage("Source code from TGV has changed ! Compare and modify your version before saving (right pan).");
+
+         let result = vscode.commands.executeCommand(
             "vscode.diff",
             leftFile,
             rightFile,
-            "Yo Bro"
-        ).then((result) => {});
+            "TGV (" + leftFile.fsPath.substring(leftFile.fsPath.lastIndexOf("\\") + 1) + ") | local (" + rightFile.fsPath.substring(rightFile.fsPath.lastIndexOf("\\") + 1) + ")"
+         ).then((resParam) => {
+            // vscode.window.showInformationMessage("gruik !");
+         });
+      }
+   } catch (compareError) {
+      console.log("Couldn't compare " + leftFile.fsPath + " and " + rightFile.fsPath + "\n" + compareError);
+   }
 
-        // return commands;
-    });
+   return result;
 }
 
 function SyncAll() {
@@ -137,19 +201,18 @@ function runContext() {
             "try scenario"
         ]
     ).then( (choice : string) => {
-
+ 
         config = vscode.workspace.getConfiguration('ewam');
 
         if (choice == "try class") {
-
-            axios.post(config.get('url') + '/api/rest/tryClass/' + className, {})
+            axios.default.post(config.get('url') + '/api/rest/tryClass/' + className, {})
             .then( (response : any) => {
                 
             })
             .catch( (response : any) => {
                 console.log(response);
             });
-
+            
         } else if (choice == "try method") {
 
             getMethodAtLine(cursorPosition.start.line, activeEditor.document)
@@ -160,7 +223,7 @@ function runContext() {
 
                 } else {
 
-                    axios.post(config.get('url') + '/api/rest/tryMethod/' + className + '/' + methodName, {})
+                    axios.default.post(config.get('url') + '/api/rest/tryMethod/' + className + '/' + methodName, {})
                     .then( (response : any) => {
                         
                     })
@@ -173,11 +236,11 @@ function runContext() {
 
         } else if (choice == "try scenario") {
 
-            axios.get(config.get('url') + '/api/rest/classOrModule/' + className + '/scenarios', {})
+            axios.default.get(config.get('url') + '/api/rest/classOrModule/' + className + '/scenarios', {})
             .then( (response : any) => {
                 vscode.window.showQuickPick(response.data)
                 .then((selection) => {
-                    axios.post(config.get('url') + '/api/rest/tryScenario/' + className + '/' + selection["label"], {})
+                    axios.default.post(config.get('url') + '/api/rest/tryScenario/' + className + '/' + selection["label"], {})
                 });
             })
             .catch( (response : any) => {
@@ -212,7 +275,7 @@ function SyncTGV() : any {
     vscode.window.showInformationMessage(
         "Syncing your environment's TGVs...");
     
-    return axios.post(config.get('url') + '/api/rest/repository/synchronize', {})
+    return axios.default.post(config.get('url') + '/api/rest/repository/synchronize', {})
     .then( (response : any) => {
         vscode.window.showInformationMessage("TGV sync done.");
     });
@@ -291,14 +354,16 @@ function refreshUI() {
     var name = getOpenClassName();
 
     if (name != '') {
-        axios.get(config.get('url') + '/api/rest/classOrModule/' + name + '/entityStatus')
+        axios.default.get(config.get('url') + '/api/rest/classOrModule/' + name + '/entityStatus')
             .then(function(response) {
                 if (response.data["checkedOut"]) {
                     checkInBarItem.show();
                     checkOutBarItem.hide();
                     scenarioBarItem.show();
                     reimplemBarItem.show();
-                    parseBarItem.show();
+                    parseBarItem.show()
+                    //fs.fstat()
+                    //vscode.window.activeTextEditor.document.uri.fsPath
                 } else {
                     checkInBarItem.hide();
                     checkOutBarItem.show();
@@ -333,7 +398,7 @@ function openClass(name: string) {
         return;
     }
 
-    axios.get(config.get('url') + '/api/rest/classOrModule/' + name)
+    axios.default.get(config.get('url') + '/api/rest/classOrModule/' + name)
     .then((response) => {
         vscode.window.setStatusBarMessage('eWam Parsing Ok');
 
@@ -341,14 +406,18 @@ function openClass(name: string) {
             { method: "getModulePath" },
             { "moduleName": name } 
         ).then((modulePath: string) => {
-            var fileName = modulePath + "\\" + name + EXTENSION;
-
+            let fileName : string = modulePath + "\\" + name + EXTENSION;
+            fileName = path.normalize(fileName);
+            
             try {
                 fs.accessSync(modulePath)
             } catch (err) {
                 recursiveMkdir(modulePath);
             };
             
+            if (fs.existsSync(fileName)) {
+               fs.chmod(fileName, '0666');
+            }
             fs.writeFile(fileName, response.data["content"], function(err)
             {
                 if (err) throw err;
@@ -366,9 +435,163 @@ function openClass(name: string) {
     });
 }
 
+function setReadOnly (fileName : string) {
+   fs.chmodSync(fileName, '0444');
+}
+
+function setReadWrite (fileName : string) {
+   fs.chmodSync(fileName, '0666');
+}
+
+function loadCache() {
+   return languageClient.sendRequest(
+        { method: "loadCache" },
+        { param : {} } 
+    )
+    .then(
+        () => {}
+    );
+}
+
+function saveCache() {
+   return languageClient.sendRequest(
+        { method: "saveCache" },
+        { param : {} }
+    )
+    .then(
+        () => {}
+    );
+}
+
+function getLastknownImplemVersion(className : string) : Thenable<number> {
+   let result : number = -1;
+
+   return languageClient.sendRequest(
+      { method: "getLastknownImplemVersion" },
+      { "moduleName": className } 
+   ).then((versionNumber : number) => {
+      return versionNumber;
+   });
+}
+
+function getImplemVersion(currentSource : string) : number {
+   let implemVersionPos : number = currentSource.indexOf('(Implem Version:') + 16;
+   let implemVersion : number = + currentSource.substring(
+      implemVersionPos,
+      currentSource.indexOf(')', implemVersionPos));
+
+   return implemVersion;
+}
+
+function getDefVersion(currentSource : string) : number {
+   let defVersionPos : number = currentSource.indexOf('(Def Version:') + 13;
+   let defVersion : number = + currentSource.substring(
+      defVersionPos,
+      currentSource.indexOf(')', defVersionPos));
+
+   return defVersion;
+}
+
+function isCheckOut(className : string) : Thenable<Boolean> {
+
+   return axios.default.get(config.get('url') + '/api/rest/classOrModule/' + className + '/entityStatus')
+   .then((statusResponse) => {
+      if( statusResponse.data["checkedOut"] ) {
+         return true;
+      } else {
+         return false;
+      }
+   });
+}
+
+function checkStatus(doc? : vscode.TextDocument) {
+   
+   if (doc == undefined || !doc) {
+        if (vscode.window.activeTextEditor != undefined) {
+            doc  = vscode.window.activeTextEditor.document;
+        } else {
+            return;
+        }
+    }
+
+   let className : string = getOpenClassName(doc);
+
+   // Retrieve status
+   return isCheckOut(className)
+   .then((checkedOut : Boolean) => {
+      if(!checkedOut) {
+         setReadOnly(doc.fileName);
+         // vscode.window.showWarningMessage("'" + className + "' isn't checked out. Modifications won't be saved in TGVs, and will be lost after next \"Open Entity\" !")
+         
+      }
+   });
+}
+
+function checkBeforeSave(doc? : vscode.TextDocument) : Thenable<any> {
+
+   if (doc == undefined || !doc) {
+      if (vscode.window.activeTextEditor != undefined) {
+         doc  = vscode.window.activeTextEditor.document;
+      } else {
+         return;
+      }
+   }
+   
+   let className : string = getOpenClassName(doc);
+   let currentSource : string = doc.getText();
+
+   return isCheckOut(className).then((checkedOut) => {
+
+      if (checkedOut) {
+
+         return languageClient.sendRequest(
+            { method: "getModulePath" },
+            { "moduleName": className } 
+         ).then((modulePath: string) => {
+
+            let fileName = modulePath + "\\" + className + EXTENSION;
+
+            // get last known implem version for this class
+            return languageClient.sendRequest({ method: "getLastknownImplemVersion" }, { "moduleName": className })
+            .then((lastKnownImplem : number) => {
+
+               // Retrieve status to get current implem
+               return axios.default.get(config.get('url') + '/api/rest/classOrModule/' + className + '/entityStatus')
+               .then( (statusResponse) => { 
+
+                  // Compare remote version to local version => Diff if differs
+                  // let defVersion : number = getDefVersion(currentSource); 
+                  // let implemVersion : number = getImplemVersion(currentSource);
+
+                  // TGV source changed !
+                  if (lastKnownImplem != -1 && lastKnownImplem != statusResponse.data["implemVersion"]) {
+
+                     // Retrieve TGV source code version
+                     return axios.default.get(config.get('url') + '/api/rest/classOrModule/' + className)
+                     .then((sourceResponse) => {
+                        return compareFiles(modulePath, className, sourceResponse.data["content"]);
+                     }).catch((response) => {
+                        console.log("Couldn't get source code from " + className)
+                     });
+                  } else {
+                     if (fs.existsSync(modulePath + "\\" + className + ".tgv" + EXTENSION)) {
+                        fs.unlink(modulePath + "\\" + className + ".tgv" + EXTENSION);
+                     }
+                  }
+               }).catch((response) => {
+                  console.log("Couldn't retrieve status of " + className)
+               });
+            });
+         });
+      } else {
+         vscode.window.showWarningMessage(className + " isn't checked out, you can't save your changes.");
+      }
+   });
+}
+
 function GenericPostOperation(name: string, op: string) {
 
-    axios.post(config.get('url') + '/api/rest/classOrModule/' + name + '/' + op, {})
+    axios.default.post(config.get('url') + '/api/rest/classOrModule/' + name + '/' + op, {})
         .then(function(response) {
             refreshUI();
         })
@@ -377,9 +600,27 @@ function GenericPostOperation(name: string, op: string) {
         });
 }
 
+function checkOutClass(name : string) {
+
+   axios.default.post(config.get('url') + '/api/rest/classOrModule/' + name + '/checkOut', {})
+   .then(function(response) {
+      refreshUI();
+      languageClient.sendRequest(
+         { method: "getModulePath" },
+         { "moduleName": name } 
+      ).then((modulePath: string) => {
+         setReadWrite(modulePath + "\\" + name + ".god");
+      });
+   })
+   .catch(function(response) {
+      console.log(response);
+   });
+
+}
+
 function checkInClass(name: string) {
     config = vscode.workspace.getConfiguration('ewam');
-    axios.post(config.get('url') + '/api/rest/classOrModule/' + name + '/checkIn', {})
+    axios.default.post(config.get('url') + '/api/rest/classOrModule/' + name + '/checkIn', {})
         .then(function(response) {
             // console.log(vscode.workspace.rootPath);
             var fileName = vscode.workspace.rootPath + '\\' + name + EXTENSION;
@@ -475,64 +716,69 @@ function save(notifyNewSource: Boolean = false, doc? : vscode.TextDocument) {
     if (!doc) {
         doc  = vscode.window.activeTextEditor.document;
     }
-    
-    languageClient.sendRequest(
-        { method: "save" },
-        {
-            "classname": getOpenClassName(doc),
-            "source": doc.getText(),
-            "notifyNewSource" : notifyNewSource,
-            "uri": doc.uri.toString()
-        } 
-    ).then(
-        (params: {newSource: string, docUri: string} ) => {
-            if (params.docUri == '' && params.newSource == '') {
-                saving = false;
-                return;
-            }
-            
-            let editor: vscode.TextEditor = null;
-            
-            // Look for the editor we parsed
-            for (var index = 0; index < vscode.window.visibleTextEditors.length; index++) {
-                if (vscode.window.visibleTextEditors[index].document.uri.toString() === params.docUri)
-                {
-                    editor = vscode.window.visibleTextEditors[index];
-                    break;
-                }
-            }
-            
-            if (editor == null) {
-                saving = false;
-                return;
-            }
-            
-            editor.edit(
-                editBuilder => {
-                    var start: vscode.Position = new vscode.Position(0, 0);
-                    var lastLine: number = editor.document.lineCount - 1;
-                    
-                    var end: vscode.Position = editor.document.lineAt(lastLine).range.end;
-                    var range: vscode.Range = new vscode.Range(start, end);
-                    
-                    editBuilder.replace(range, params.newSource);
-                    refreshUI();
-                    parseBarItem.color = 'white';
-                }
-            ).then((value : boolean) => {
-                editor.document.save().then(
-                    () => {
-                        saving = false;
-                    },
-                    (reason : any) => {
-                        saving = false;
-                    });
-            });
-        },
-        (reason : any) => {
-            saving = false;
-        }
-    );
+    let moduleName : string = getOpenClassName(doc);
+    let source : string = doc.getText();
+
+    checkBeforeSave(doc).then( () => {
+
+      languageClient.sendRequest(
+         { method: "save" },
+         {
+               "classname": moduleName,
+               "source": source,
+               "notifyNewSource" : notifyNewSource,
+               "uri": doc.uri.toString()
+         }
+      ).then(
+         (params: {newSource: string, docUri: string} ) => {
+               if (params.docUri == '' && params.newSource == '') {
+                  saving = false;
+                  return;
+               }
+               
+               let editor: vscode.TextEditor = null;
+               
+               // Look for the editor we parsed
+               for (var index = 0; index < vscode.window.visibleTextEditors.length; index++) {
+                  if (vscode.window.visibleTextEditors[index].document.uri.toString() === params.docUri)
+                  {
+                     editor = vscode.window.visibleTextEditors[index];
+                     break;
+                  }
+               }
+               
+               if (editor == null) {
+                  saving = false;
+                  return;
+               }
+               
+               editor.edit(
+                  editBuilder => {
+                     var start: vscode.Position = new vscode.Position(0, 0);
+                     var lastLine: number = editor.document.lineCount - 1;
+                     
+                     var end: vscode.Position = editor.document.lineAt(lastLine).range.end;
+                     var range: vscode.Range = new vscode.Range(start, end);
+                     
+                     editBuilder.replace(range, params.newSource);
+                     refreshUI();
+                     parseBarItem.color = 'white';
+                  }
+               ).then((value : boolean) => {
+                  editor.document.save().then(
+                     () => {
+                           saving = false;
+                     },
+                     (reason : any) => {
+                           saving = false;
+                     });
+               });
+         },
+         (reason : any) => {
+               saving = false;
+         }
+      );
+    });
 }
 
 function classTree() {
@@ -555,7 +801,7 @@ function classTree() {
         return;
     }
 
-    axios.post(config.get('url') + '/api/rest/classOrModule/' + moduleName + '/showInTree')
+    axios.default.post(config.get('url') + '/api/rest/classOrModule/' + moduleName + '/showInTree')
         .then(function(response) {
             // console.log(response);
         })
@@ -565,7 +811,7 @@ function classTree() {
     
 }
 
-class ModuleDocumentationContentProvider implements TextDocumentContentProvider {
+class ModuleDocumentationContentProvider implements vscode.TextDocumentContentProvider {
     
     // onDidChange: vscode.Event<vscode.Uri>;
     private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
@@ -620,7 +866,7 @@ function getDataAsString(response): string {
 
 function getScenario(classname: string, callBack: getScenarioCallBack) {
 
-    axios.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/scenarios')
+    axios.default.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/scenarios')
         .then(function(response) {
 
             vscode.window.showQuickPick(getDataAsTable(response))
@@ -638,7 +884,7 @@ function newClass(parentClass : string) {
         vscode.window.showInputBox({ prompt: 'Class name', value: '' })
         .then(name => {
             if (name != undefined) {
-                axios.put(config.get('url') + '/api/rest/classOrModule/', { content: '', ancestor: parentClass, name: name })
+                axios.default.put(config.get('url') + '/api/rest/classOrModule/', { content: '', ancestor: parentClass, name: name })
                 .then(function(response) {
                     // console.log(response);
                     openClass(name);
@@ -656,7 +902,7 @@ function newModule() {
     vscode.window.showInputBox({ prompt: 'Module name', value: '' })
     .then(name => {
         if (name != undefined) {
-            axios.put(config.get('url') + '/api/rest/classOrModule/', { content: '', ancestor: '', name: name })
+            axios.default.put(config.get('url') + '/api/rest/classOrModule/', { content: '', ancestor: '', name: name })
             .then(function(response) {
                 // console.log(response);
                 openClass(name);
@@ -667,7 +913,7 @@ function newModule() {
 
 function editScenario(classname: string, scenarioName: string) {
 
-    axios.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/scenarios/' + scenarioName)
+    axios.default.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/scenarios/' + scenarioName)
         .then(function(response) {
 
         })
@@ -690,13 +936,13 @@ function metaInfo() {
     if (classname != '') {
         vscode.window.showQuickPick(['Variables', 'Methods', 'Parents', 'Descendants', 'Sisters', 'Types'], { placeHolder: 'What meta data do you want?' }).then(choice => {
             if (choice != undefined) {
-                axios.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/' + choice)
+                axios.default.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/' + choice)
                     .then(function(response) {
                         vscode.window.showQuickPick(getDataAsTable(response)).then(selected => {
                             if (selected != undefined) {
                                 if (choice == 'Variables') {
                                     // vscode.window.showQuickPick(['Override']).then(action => {
-                                    //     axios.get(config.get('url') + choice)
+                                    //     axios.default.get(config.get('url') + choice)
                                     //     .then(variable => {
                                     //         editor = vscode.window.activeTextEditor;
                                     //         editor.edit(editBuilder => {
@@ -711,13 +957,18 @@ function metaInfo() {
                                 } else if (choice == 'Methods') {
                                     vscode.window.showQuickPick(['Override', 'Toggle Break Point']).then(action => {
                                         if (action == 'Toggle Break Point') {
-                                            axios.post(config.get('url') + selected.location + '/breakPoint', {})
-                                            .then(function(method) {
+                                            // axios.default.post(config.get('url') + selected.location + '/breakPoint', {})
+                                            // rest/classOrModule/{name}/methods/{methodName}/breakPoint */
+                                            console.log(config.get('url') + '/api/rest/classOrModule/' + classname + '/methods/' + selected.label + '/breakPoint');
+                                            axios.default.post(config.get('url') + '/api/rest/classOrModule/' + classname + '/methods/' + selected.label + '/breakPoint', {})
+                                            .then( (method) => {
+                                               
                                                 refreshUI();
                                             });
                                         } else if (action == 'Override') {
-                                            axios.get(config.get('url') + selected.location)
-                                            .then(function(method) {
+                                            //axios.default.get(config.get('url') + selected.location)
+                                            axios.default.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/methods/' + selected.label, {})
+                                            .then( (response) => {
 
                                                 editor = vscode.window.activeTextEditor;
                                                 editor.edit(editBuilder => {
@@ -725,7 +976,7 @@ function metaInfo() {
                                                     // var end = new vscode.Position(0, 1);
                                                     // var range = new vscode.Range(start, end);
                                                     var selection = editor.selection;
-                                                    editBuilder.replace(selection, "\n" + getDataAsString(method) + " override\nend\n");
+                                                    editBuilder.replace(selection, "\n" + response.data["signature"] + " override\nend\n");
                                                 }
                                                 );
                                             });
@@ -753,18 +1004,88 @@ function interact(uri: string) {
         .then(choice => {
             if (choice == 'interact') {
                 config = vscode.workspace.getConfiguration('ewam');
-                axios.get(config.get('url') + uri + '/'+choice)
+                axios.default.get(config.get('url') + uri + '/'+choice)
                     .then(function(response) {
                     }).catch(function(response) {
                     });
             } else if (choice != undefined){
                  config = vscode.workspace.getConfiguration('ewam');
-                axios.post(config.get('url') + uri + '/'+choice)
+                axios.default.post(config.get('url') + uri + '/'+choice)
                     .then(function(response) {
                     }).catch(function(response) {
                     });
             }
         });
+}
+
+interface tScenarioType {
+   className: string,
+   name: string
+}
+
+interface tPossibleScenarioTypes {
+  primaryTypes: tScenarioType[],
+  secondaryTypes: tScenarioType[]
+}
+
+function createNewScenario(className : string) {
+
+   let doCreateScen = (className : string, scenarioType : string) => {
+
+      vscode.window.showInputBox({prompt: "Name for scenario (optional)"})
+      .then( (scenarioName : string) => {
+
+         let _rp = rp({    
+            method: 'PUT',
+            uri: config.get('url') + '/api/rest/classOrModule/' + className + '/createScenario/' + scenarioType, 
+            json: true,
+            body: "" + scenarioName + ""
+         });
+
+         _rp.then(() => {
+         });
+      });
+
+      
+   }
+
+   let _rp = rp(
+   {    
+      method: 'GET',
+      uri: config.get('url') + '/api/rest/classOrModule/' + className + '/possibleScenario/', 
+      json: true
+   });
+      
+   _rp.then( (possibleScenarios : tPossibleScenarioTypes) => {
+      let primaryScenList : vscode.QuickPickItem[] = [];
+      let secondaryScenList : vscode.QuickPickItem[] = [];
+
+      for (let index : number = 0; index < possibleScenarios.primaryTypes.length; index++) {
+         primaryScenList.push({
+            label: possibleScenarios.primaryTypes[index].name,
+            description: possibleScenarios.primaryTypes[index].className
+          });
+      }
+
+      for (let index : number = 0; index < possibleScenarios.secondaryTypes.length; index++) {
+         secondaryScenList.push({
+            label: possibleScenarios.secondaryTypes[index].name,
+            description: possibleScenarios.secondaryTypes[index].className
+          });
+      }
+
+      vscode.window.showQuickPick(primaryScenList, {placeHolder : "What scenario type ?"})
+      .then( (value: vscode.QuickPickItem) => {
+         if (value.label == "Other...") {
+            vscode.window.showQuickPick(secondaryScenList, {placeHolder : "What scenario type ?"})
+            .then( (value: vscode.QuickPickItem) => {
+               doCreateScen(className, value.description);
+            });
+         } else {
+            doCreateScen(className, value.description);
+         }
+      });
+   });
 }
 
 /**
@@ -787,7 +1108,7 @@ function searchClass(callBackFunc: searchClassCallBack, promptText : string = 'C
     config = vscode.workspace.getConfiguration('ewam');
     vscode.window.showInputBox({ prompt: promptText, value: text })
         .then(criteria => {
-            axios.get(config.get('url') + '/api/rest/searchEntities',
+            axios.default.get(config.get('url') + '/api/rest/searchEntities',
                 {
                     params: {
                         q: criteria
@@ -816,10 +1137,33 @@ function searchClass(callBackFunc: searchClassCallBack, promptText : string = 'C
 }
 
 function run() {
-    config = vscode.workspace.getConfiguration('ewam');
-    axios.post(config.get('url') + '/api/rest/run/' + config.get('className') + '/' + config.get('methodName'), config.get('args'))
-    .then(function(response) {
-    });
+   config = vscode.workspace.getConfiguration('ewam');
+
+   let launchMode : string = config.get('applicationLauncher')['mode'];
+   let launchClass : string = config.get('applicationLauncher')['class'];
+   let launchItem : string = config.get('applicationLauncher')['item']; 
+
+   if (launchMode == 'class') {
+
+      axios.default.post(
+         config.get('url') + '/api/rest/tryClass/' + launchClass)
+      .then( (response) => { });
+
+   } else if (launchMode == 'method') {
+
+      axios.default.post(
+         config.get('url') + '/api/rest/tryMethod/' + launchClass + '/' + launchItem,
+         config.get('applicationLauncherParams'))
+      .then( (response) => { });
+
+   } else if (launchMode == 'scenario') {
+
+      axios.default.post(
+         config.get('url') + '/api/rest/tryScenario/' + launchClass + '/' + launchItem)
+      .then( (response) => { });
+
+   }
+   
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -885,7 +1229,7 @@ export function activate(context: vscode.ExtensionContext) {
     
     // Create the language client and start the client.
     languageClient = new LanguageClient('Ewam VSServer', 'ewam-server', serverOptions, clientOptions);
-    
+
     /*languageClient.onRequest({method: "onParseSuccessful"}, 
         (params: {newSource: string, docUri: string} ) => {
             var editor: vscode.TextEditor = null;
@@ -958,11 +1302,23 @@ export function activate(context: vscode.ExtensionContext) {
         }
     );*/
     
-    languageClient.onRequest({method: "getRootPath"}, 
-        (params : any) : string => {
+      languageClient.onRequest({method: "getRootPath"}, 
+         (params : any) : string => {
             return vscode.workspace.rootPath;
-        }
-    );
+         }
+      );
+
+   /*languageClient.onNotification({method: "showNotification"}, 
+      (params : {type:string, message:string}) => {
+         if (params.type == "error") {
+            vscode.window.showErrorMessage(params.message);
+         } else if (params.type == "warning") {
+            vscode.window.showWarningMessage(params.message);
+         } else if (params.type == "information") {
+            vscode.window.showInformationMessage(params.message);
+         }
+      }
+   );*/
 
     let disposable = languageClient.start();
 
@@ -993,7 +1349,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 
     disposable = vscode.commands.registerCommand('ewam.checkOut', function() {
-        GenericPostOperation(getOpenClassName(), 'checkOut');
+      checkOutClass(getOpenClassName());
     });
     context.subscriptions.push(disposable);
 
@@ -1081,12 +1437,27 @@ export function activate(context: vscode.ExtensionContext) {
         SyncGit();
     });
     context.subscriptions.push(disposable);
-    
-    disposable = vscode.commands.registerCommand('ewam.diffTest', function() {
-        diffTest();
+
+    disposable = vscode.commands.registerCommand('ewam.dummyCommand', function() {
+       dummyCommand();
     });
     context.subscriptions.push(disposable);
     
+   //  disposable = vscode.commands.registerCommand('ewam.diffTest', function() {
+   //      diffTest();
+   //  });
+   //  context.subscriptions.push(disposable);
+
+   disposable = vscode.commands.registerCommand('ewam.createScenario', function() {
+      createNewScenario(getOpenClassName());
+   });
+   context.subscriptions.push(disposable);
+
+    disposable = vscode.commands.registerCommand('ewam.setReadOnly', function() {
+        setReadOnly(vscode.window.activeTextEditor.document.fileName);
+    });
+    context.subscriptions.push(disposable);
+        
     parseBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
     parseBarItem.text = '$(beaker) Parse'
     parseBarItem.tooltip = 'Parse class';
@@ -1145,11 +1516,19 @@ export function activate(context: vscode.ExtensionContext) {
     scenarioBarItem.tooltip = 'Edit scenarios';
     scenarioBarItem.command = 'ewam.scenario';
     
+    vscode.workspace.onWillSaveTextDocument(
+       (event : vscode.TextDocumentWillSaveEvent) => {
+          if (event.document.languageId == "gold") {
+            
+          }
+       }
+    );
+
     vscode.workspace.onDidChangeTextDocument(
         (event : vscode.TextDocumentChangeEvent) => {
-            // console.log('opened document');
+
             if (event.document.languageId == "gold") {
-                // console.log('... a Gold document !');
+               
                 let now : number = new Date().getTime();
                 
                 if (parsePlanned)
@@ -1173,9 +1552,10 @@ export function activate(context: vscode.ExtensionContext) {
         }
     );
     
-    vscode.workspace.onDidSaveTextDocument( 
-        (document : vscode.TextDocument) => {
+    vscode.workspace.onWillSaveTextDocument( 
+        (saveEvt : vscode.TextDocumentWillSaveEvent) => {
             // console.log('opened document');
+            let document : vscode.TextDocument = saveEvt.document;
             if (document.languageId == "gold" && saving == false) {
                 // console.log('... a Gold document !');
                 save(true, document);
@@ -1190,6 +1570,12 @@ export function activate(context: vscode.ExtensionContext) {
             // console.log('opened document ' + document.fileName + '\n');
             if (document.languageId == "gold") {
                 // console.log('... a Gold document !');
+
+
+                // Retrieve the latest source code, if we haven't modified the original version
+                // ...
+
+                // Get the current parsing errors
                 parse(false, document);
             }
         }
@@ -1200,26 +1586,46 @@ export function activate(context: vscode.ExtensionContext) {
             // console.log('focus on document ' + editor.document.fileName + '\n');
             if (editor.document.languageId == "gold") {
                 // console.log('... a Gold document !');
+               //  getLastknownImplemVersion(getOpenClassName(editor.document))
+               //  .then((implemNumber : number) => {
+               //     console.log("Currently known implemVersion: " + implemNumber);
+               //  });
+                checkStatus(editor.document);
                 parse(false, editor.document);
             }
         }
     );
+
     
     vscode.languages.setLanguageConfiguration("gold", {"comments": { "lineComment": ";" } } );
     
     moduleDocumentationProvider = new ModuleDocumentationContentProvider();
     let registration = vscode.workspace.registerTextDocumentContentProvider('ewam', moduleDocumentationProvider);
-    
+   
     // vscode.window.showInformationMessage("eWAM Plugin activated");
 
     disposable = vscode.window.setStatusBarMessage('Ready');
     context.subscriptions.push(disposable);
 
+    fileWatcher = vscode.workspace.createFileSystemWatcher("**/*.god");
+
+   fileWatcher.onDidChange((event : vscode.Uri) => {
+      // console.log("onDidChange" + event.fsPath);
+   });
+
+   fileWatcher.onDidCreate((event : vscode.Uri) => {
+      // console.log("onDidCreate" + event.fsPath);
+   });
+
+   fileWatcher.onDidDelete((event : vscode.Uri) => {
+      // console.log("onDidDelete" + event.fsPath);
+   });
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
-    console.log("eWAM extension deactivation");
-    return;
+   // saveCache();
+   console.log("eWAM extension deactivation");
+   return;
 }
 

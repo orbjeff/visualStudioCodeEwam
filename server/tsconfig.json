@@ -1,12 +1,13 @@
 {
-	"compilerOptions": {
-		"target": "es5",
-		"module": "commonjs",
-		"moduleResolution": "node",
-		"sourceMap": true,
-		"outDir": "../client/server"
-	},
-	"exclude": [
-		"node_modules"
-	]
+   "compilerOptions": {
+      "target": "es6",
+      "module": "commonjs",
+      "moduleResolution": "node",
+      "sourceMap": true,
+      "outDir": "../client/server"
+    },
+    "exclude": [
+        "node_modules",
+        ".vscode-test"
+    ]
 }

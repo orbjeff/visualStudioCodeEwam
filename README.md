@@ -164,14 +164,9 @@ Additional tasks :
 ## Alpha 0.2.6 - *Deliver on September 21, 2016*
     
 - [x] Overriding
-- [ ] Add a simple scenario
 - [x] review diff / merge capabilities of VS Code (context of reimplems) : we diff whatever we want, using URI, so it could even be a content provider I expect
-- [ ] Produce a video presenting all the features
 
 - Bug fixes and ergonomy
-    - [ ] API performance (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled, due to serializer)
-        - use Florian's serializer for simple records
-        - maybe cache metainfo in local file
     - [x] Module parsing error due to aClassPreparer
     - [x] Breakpoint API not working
         - [x] Breakpoint UI refreshing
@@ -185,19 +180,91 @@ Additional tasks :
 
 ## Alpha 0.2.7 - *Deliver on September 26, 2016*
 
-- [ ] Add a simple scenario
-- [ ] Improve "Find references" feature to provide position in file (use metainfo or maybe ewam-open:// URL ?)
-    - [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs (might be useful in documentation or when accessing an entity we don't know the position yet).
-- [ ] Add watch on bundleIndex.json in order to detect bundle changes
-- [ ] Review APIs to use IsValid when necessary
-- [ ] Produce a video presenting all the features
+- [x] Implement "Add scenario"
+   - [x] Check aModuleDefAPI.CreateNewScenario code with Eric (modif implem as well as def ?)
+- [x] Symbol renaming
+   - [x] Module or class renaming
+- [x] Class / module checkout state integrity
+   - [x] set files in readonly when not checked out
+- [x] Class / module version integrity : check implem versions (tgv versus local file) or maybe user eWam global version 
+   - [x] Open a compare when last known implem versions differ between TGV and local
+- [x] Improved snippets
+   - [x] Handle local metainfo cache file in order to help with consistency checking
+- [x] Store metainfo and temp diff files in a .tmp folder in rootfolder
 
 - Bug fixes and ergonomy
+    - [x] WhereUsed : method are shown in the result...
+    - [x] GetNodeURL not working. Waiting for Advanced Framework fix (done, see Fred's email "RE: Bug dans le serializer ?")
+      - [x] Fix Override
+      - [x] Fix Toggle breakpoint
+    - [x] After a rename, new source code seems not to be always regenerated correctly. <= this was due to errors. The resulting source wasn't truncated
+    - [x] Annotation errors aren't retrieved
+      - [/] Parse / reformat isn't done in this case, eventhough no error is retrieved
+      - [x] Save propably also fails, but no user feedback : provide notification in case of saving incorrectly parsed file
+    - [x] crash on searchEntities with aWF* classes
+
+## Upcoming tasks
+
+- [ ] Class renaming
+- [ ] Forbid Class/module checkout/modification for dependencies <= maybe, useless since dependencies are checked in (and should be kept by integrator), thus in readonly  
+- [ ] Class/module documentation with more info : variables/methodes/types/constantes/scenarios
+- [ ] Class tree as HTML preview
+- [ ] Module list as HTML preview
+- [ ] When opening a class/module, fold anotations
+- [ ] Provide custom syntax theme base on "Dark (Visual Studio)" theme. 
+- [ ] "Open eWam" command
+- [ ] Handle "rebundling" (moving a project entity from its current bundle to a new one)
+
+- [ ] Ergonomic way to override variables and methods
+- [ ] Additional validations (check repo is writable)
+- [ ] Other entity management (create new scenario, translation, ...)
+- [ ] Verify compatibility 6.1 / 6.1.5 (test multi user) - seb
+- [ ] Demo video (with OBS - https://obsproject.com/download)
+
+- [ ] User documentation
+- [ ] Integrator documentation / guidelines
+    - Preparation de l’env VS Code
+    - Installation de nouveaux bundles tiers
+    - MAJ de bundles tiers
+    - Prise en compte des nouvelles classes de developeurs
+    - Bundle redesign
+
+- Bug fixes and ergonomy
+    - [ ] Unable to open Reimplems : reimplems disabled (actually there's more to it, c.f. commenting InitReimplemExecution() isn't enought... ) 
     - [ ] API performance (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled, due to serializer)
         - use Florian's serializer for simple records
         - maybe cache metainfo in local file
+        
+... nothing left to do... we're nearly there !
 
-... none ... we're nearly there !
+## 2.0 supported as of eWAM 6.2
+
+- [ ] API re-fectoring
+    - [ ] APIs redesign : API restful (see swapi collections)
+    - [ ] Review APIs to use IsValid when necessary (checks entity is valid. Usefull when creating a new module / class to check if doesn't exist and name correct)
+    - [ ] Implement better outlining / metainfo production API
+        - [ ] Outlines and definitions should be provided after F7 parse
+    - [ ] API proper and accurate documentation
+    - [ ] API test
+
+- [ ] Code re-fectoring / architecturing / documentation
+    - [ ] Implement module management (open, save, parse, status update, etc).
+    - [ ] Implement metainfo query API
+    - [ ] Implement entity access management : local file + synchronization questions  
+
+- [ ] Breakpoint management
+- [ ] Debugger
+- [ ] Cache management
+
+- [ ] Improve "Find references" feature to provide position in file (use metainfo or maybe ewam-open:// URL ?)
+    - [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs (might be useful in documentation or when accessing an entity we don't know the position yet).
+
+
+## Possible improvements 
+
+- [ ] Parsing errors iteration 2 : code analyzer feedback
+- [ ] Review "Code Actions" feature : could be implemented using code analyzer
+- [ ] Add watch on bundleIndex.json in order to detect bundle changes
 
 ## Demo script
 
@@ -214,6 +281,7 @@ Additional tasks :
     - Ouvrir une classe ou nouvelle classe (aApplicativeRoot)
     / CheckOut / Checkin
 
+
     - Coding :
         - Parse
             - Errors
@@ -221,6 +289,7 @@ Additional tasks :
         - Suggestions
         - Signature Help
         - Run
+        - override
         - Commenting
         - Scenario Edition
 
@@ -235,6 +304,11 @@ Additional tasks :
             => text search "GetLogin"
         - Find all occurences
             => GetLogin of aWFActor
+
+    - Ergonomy
+        - Rename
+        - Checked in/out consistency
+        - Local / TGV version class/module consistency 
 
     - Class tree
 
@@ -282,44 +356,3 @@ Additional tasks :
     endProc 
 
 ------------------------
-
-
-
-
-## Upcoming tasks
-
-- [ ] Verify compatibility 6.1 / 6.1.5 (test multi user) - seb
-
-- [ ] Parsing errors iteration 2 : code analyzer feedback 
-- [ ] Ergonomic way to override variables and methods
-- [ ] Symbol renaming
-- [ ] Additional code snippets
-- [ ] Review "Code Actions" feature : could be implemented using code analyzer
-- [ ] Additional validations (check repo is writable)
-- [ ] Other entity management (create new scenario, translation, ...)
-- [ ] Demo video (with OBS - https://obsproject.com/download)
-
-- [ ] Questions de Florian : 
-    - [ ] Fichiers virtuels => contentProviders? (seems to only work for read-only html previews)
-
-- [ ] Design decisions concerning source code repository location and organization
-    - [ ] API repository context
-
-- [ ] Code and API re-fectoring  / architecturing / documentation
-    - [ ] API proper and accurate documentation
-    - [ ] API test
-    - [ ] Implement better outlining / metainfo production API
-    - [ ] Implement metainfo query API
-    - [ ] Implement entity access management : local file + synchronization questions  
-
-## 2.0 supported by eWAM 6.2
-- [ ] Breakpoint management
-- [ ] Debugger
-- [ ] Cache management
-
-
-
-
-
-
-

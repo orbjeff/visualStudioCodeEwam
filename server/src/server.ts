@@ -12,9 +12,10 @@ import {
     CompletionItem, CompletionItemKind, CompletionList, Hover, CodeActionParams, Command,
     SymbolInformation, ReferenceParams, Position, SignatureHelp, ParameterInformation, 
     SignatureInformation, Range, RenameParams, WorkspaceSymbolParams, DocumentFormattingParams,
-    TextEdit, Location, Definition, SymbolKind, NotificationType
+    TextEdit, Location, Definition, SymbolKind, NotificationType, WorkspaceEdit
 } from 'vscode-languageserver';
 
+import * as vscode from 'vscode';
 import * as rp from 'request-promise';
 import * as fs from 'fs';
 
@@ -28,6 +29,9 @@ let documents: TextDocuments = new TextDocuments();
 // Make the text document manager listen on the connection
 // for open, change and close text document events
 documents.listen(connection);
+
+// hold the maxNumberOfProblems setting
+let url: string;
 
 // After the server has started the client sends an initilize request. The server receives
 // in the passed params the rootPath of the workspace plus the client capabilites.
@@ -45,53 +49,6 @@ interface tRepositoryParams {
 let repoParams : tRepositoryParams;
 let extension : string = ".god";
 let isUpdatingMetaInfo : Boolean;
-
-connection.onInitialize(
-    (params) : InitializeResult => {
-        connection.console.log("Initialization : " + params.rootPath);
-
-        workspaceRoot = params.rootPath;
-
-        repoParams = {
-            "repository_url" : "",
-            "basePath" : params.rootPath,
-            "workspace_subdir": "",
-            "dependencies_subdir" : ".dependencies"
-        }
-
-        isUpdatingMetaInfo = false;
-        
-        refreshCache();
-    
-        return {
-            capabilities: {
-
-                // Tell the client that the server works in FULL text document sync mode
-                textDocumentSync: documents.syncKind,
-                // Tell the client that the server support code complete
-                completionProvider: {
-                    resolveProvider: true,
-                    triggerCharacters: [ ".", "(", "," ]
-                },
-                hoverProvider: true,
-                documentSymbolProvider : true,
-                workspaceSymbolProvider : true,
-                signatureHelpProvider : { triggerCharacters : [ "(", ",", "." ] },
-                definitionProvider : true,
-                referencesProvider : true,
-                documentFormattingProvider : true
-            }
-        };
-    }
-);
-
-// The content of a text document has changed. This event is emitted
-// when the text document first opened or when its content has changed.
-documents.onDidChangeContent(
-    (change) => {
-        validateTextDocument(change.document);
-    }
-);
 
 // The settings interface describe the server relevant settings part
 interface Settings {
@@ -115,7 +72,7 @@ interface tCompletionList {
 }
 
 interface tCompletionItem {
-    name : string,
+    label : string,
     documentation : string,
     detail : string,
     insertText : string,
@@ -124,6 +81,7 @@ interface tCompletionItem {
 
 interface tEntity {
     label : string,
+    name : string,
     ownerName : string,
     exactType : string,
     baseType : string,
@@ -192,18 +150,23 @@ interface tConstant {
    entity : tEntity
 }
 
+interface tClassInfo {
+   lastKnownImplemVersion : number;
+   metaInfo : tMetaInfo;
+}
+
 interface tMetaInfo {
-   moduleName : string,
-   documentation : string,
-   variables : tVariable[],
-   locals : tVariable[],
-   methods : tMethod[],
-   constants : tConstant[],
-   types : tType[],
-   parents : tEntity[],
-   childs : tEntity[],
-   sisters : tEntity[],
-   outlines : tOutline[]
+   moduleName : string;
+   documentation : string;
+   variables : tVariable[];
+   locals : tVariable[];
+   methods : tMethod[];
+   constants : tConstant[];
+   types : tType[];
+   parents : tEntity[];
+   childs : tEntity[];
+   sisters : tEntity[];
+   outlines : tOutline[];
 }
 
 interface tWhereUsed {
@@ -214,18 +177,84 @@ interface tWhereUsed {
     description: string
 }
 
-let outlines : tOutline[];
-let metainfo : tMetaInfo[];
+let classInfo : { [modulename: string]: tClassInfo; };
 let ewamPath : string;
-let workPath : string; 
+let workPath : string;
 
-// hold the maxNumberOfProblems setting
-let url: string;
+connection.onInitialize(
+   (params) : InitializeResult => {
+      connection.console.log("Initialization : " + params.rootPath);
+
+      workspaceRoot = params.rootPath;
+
+      repoParams = {
+         "repository_url" : "",
+         "basePath" : params.rootPath,
+         "workspace_subdir": "",
+         "dependencies_subdir" : ".dependencies"
+      }
+
+      isUpdatingMetaInfo = false;
+      
+      refreshCache();
+
+      loadCache();
+
+      return {
+         capabilities: {
+
+            // Tell the client that the server works in FULL text document sync mode
+            textDocumentSync: documents.syncKind,
+            // Tell the client that the server support code complete
+            completionProvider: {
+               resolveProvider: false,
+               triggerCharacters: [ ".", "(", ",", ":", "[" ]
+            },
+            hoverProvider: true,
+            documentSymbolProvider : true,
+            workspaceSymbolProvider : true,
+            signatureHelpProvider : { triggerCharacters : [ "(", ",", "." ] },
+            definitionProvider : true,
+            referencesProvider : true,
+            documentFormattingProvider : true,
+            renameProvider: true
+         }
+      };
+   }
+);
+
+connection.onShutdown(
+   () => {
+      saveCache();
+   }
+);
+
+connection.onExit(
+   () => {
+      saveCache();
+   }
+);
+
+// The content of a text document has changed. This event is emitted
+// when the text document first opened or when its content has changed.
+documents.onDidChangeContent( (change) => {
+   validateTextDocument(change.document);
+});
+
+// documents.onDidSave((change) => {
+//    let className : string = change.document.uri.substring(
+//       change.document.uri.lastIndexOf('\\'),
+//       change.document.uri.lastIndexOf('.')
+//    );
+
+//    updateMetaInfoForClass(className, '');
+// });
+
 // The settings have changed. Is send on server activation
 // as well.
 connection.onDidChangeConfiguration((change) => {
     let settings = <Settings>change.settings;
-    url = settings.ewam.url || 'http://localhost:8082/';
+    url = settings.ewam.url || 'http://127.0.0.1:8082/';
     // Revalidate any open text documents
     documents.all().forEach(validateTextDocument);
 });
@@ -272,46 +301,73 @@ connection.onDidChangeWatchedFiles((change) => {
 
 // This handler provides the initial list of the completion items.
 connection.onCompletion(
-    (textDocumentPosition: TextDocumentPositionParams) : Thenable<CompletionList> => {
-   
-    var lines = documents.get(textDocumentPosition.textDocument.uri).getText().split(/\r?\n/g);
+   (textDocumentPosition: TextDocumentPositionParams) : Thenable<CompletionList> => {
 
-    var position = textDocumentPosition.position;
-    var line = lines[position.line];
-    var className = textDocumentPosition.textDocument.uri.substring(
-        textDocumentPosition.textDocument.uri.lastIndexOf('/') + 1, textDocumentPosition.textDocument.uri.lastIndexOf('.')
-    );
-    
-    var body = {
-        implem: {
-            name: className,
-            ancestor: "",
-            content: documents.get(textDocumentPosition.textDocument.uri).getText()
-        },
-        lineInfo: {
-            lineContent: line,
-            lineNumber: position.line,
-            columnNumber: position.character
-        }
-    };
-    
-   var _rp = rp(
-       {    
-           method: 'POST',
-        //    uri: url + '/aMRS_ActiveModelService/suggest',
-           uri: url + '/api/rest/classOrModule/' + className + '/suggest', 
-           json: true,
-           body: body
-        });
-    
-    return _rp.then( (response : tCompletionList) => {
-        
-        for (let index : number = 0; index < response.items.length; index++) {
-            response.items[index]["kind"] = getCompletionKindFromEntityClass(response.items[index].entity.baseType);
-        }
-        return response;
-    });
- 
+   // console.log("Completion request: " + JSON.stringify(textDocumentPosition));
+   var lines = documents.get(textDocumentPosition.textDocument.uri).getText().split(/\r?\n/g);
+
+   var position = textDocumentPosition.position;
+   var line = lines[position.line];
+   var className = textDocumentPosition.textDocument.uri.substring(
+      textDocumentPosition.textDocument.uri.lastIndexOf('/') + 1, textDocumentPosition.textDocument.uri.lastIndexOf('.')
+   );
+   
+   var body = {
+      implem: {
+         name: className,
+         ancestor: "",
+         content: documents.get(textDocumentPosition.textDocument.uri).getText()
+      },
+      lineInfo: {
+         lineContent: line,
+         lineNumber: position.line,
+         columnNumber: position.character
+      }
+   };
+   
+   var _rp = rp({
+      method: 'POST',
+      uri: url + '/api/rest/classOrModule/' + className + '/suggest', 
+      json: true,
+      body: body
+   });
+      
+   return _rp.then( (response : tCompletionList) => {
+      // console.log("Completion response...." /* + JSON.stringify(response)*/ );
+
+      let result : CompletionList = {
+         "isIncomplete": !response.isComplete,
+         "items": []
+      };
+
+      for (let index : number = 0; index < response.items.length; index++) {
+         result.items.push({
+            "label": response.items[index].label,
+            "kind": getCompletionKindFromEntityClass(response.items[index].entity.baseType),
+            "detail":  response.items[index].detail,
+            "documentation": response.items[index].documentation,
+            "insertText": response.items[index].insertText
+         });
+         
+         // console.log("   " + JSON.stringify({
+         //    "label": response.items[index].label,
+         //    "kind": getCompletionKindFromEntityClass(response.items[index].entity.baseType),
+         //    "detail":  response.items[index].detail,
+         //    "documentation": response.items[index].documentation,
+         //    "insertText": response.items[index].insertText
+         // }) + "\n");
+      }
+
+      // console.log("Completion result: " + JSON.stringify(result));
+
+      return result;
+   }).catch( (response : tCompletionList) => {
+      return {
+         "isIncomplete" : true,
+         "items": []
+      };
+   });
+
 });
 
 /*
@@ -344,17 +400,17 @@ function getHtmlDocFor(className) : string {
     content += '  <body>\n';
     content += '    <blockquote>';
     content += '      <h3 style="color: #ffffff;">' + className + ' summary</h3>\n';
-    content += '      <p>' + metainfo[className].documentation.replace(/\n/g, "<br/>") + '      </p>\n';
+    content += '      <p>' + classInfo[className].metaInfo.documentation.replace(/\n/g, "<br/>") + '      </p>\n';
     
     content += '      <h3 style="color: #ffffff;">' + className + ' parents</h3>\n';
     
     let indent : string = '';
     
-    for (var index = metainfo[className].parents.length - 1; index >=0 ; index--) {
+    for (var index = classInfo[className].metaInfo.parents.length - 1; index >=0 ; index--) {
         content += indent + '<a style="color: #338eff;" href="file:///' + 
-            getModulePath(metainfo[className].parents[index].label)+'\\' + 
-            metainfo[className].parents[index].label + '.god">' +
-            metainfo[className].parents[index].label + '</a><br/>\n';
+            getModulePath(classInfo[className].metaInfo.parents[index].label)+'\\' + 
+            classInfo[className].metaInfo.parents[index].label + '.god">' +
+            classInfo[className].metaInfo.parents[index].label + '</a><br/>\n';
             
         indent += '&nbsp;&nbsp;&nbsp;';
     }
@@ -363,11 +419,11 @@ function getHtmlDocFor(className) : string {
     content += '      <ul>\n';
     indent = '';
     
-    for (var index = 0; index < metainfo[className].childs.length; index++) {
+    for (var index = 0; index < classInfo[className].metaInfo.childs.length; index++) {
         content += indent + '        <li><a style="color: #338eff;" href="file:///' +
-            getModulePath(metainfo[className].childs[index].label) + '\\' + 
-            metainfo[className].childs[index].label + '.god">' +
-            metainfo[className].childs[index].label + '</a></li>\n';
+            getModulePath(classInfo[className].metaInfo.childs[index].label) + '\\' + 
+            classInfo[className].metaInfo.childs[index].label + '.god">' +
+            classInfo[className].metaInfo.childs[index].label + '</a></li>\n';
             
         // indent += '&nbsp;&nbsp;&nbsp;';
     }
@@ -379,11 +435,11 @@ function getHtmlDocFor(className) : string {
     content += '      <ul>\n';
     indent = '';
     
-    for (var index = 0; index <  metainfo[className].sisters.length; index++) {
+    for (var index = 0; index <  classInfo[className].metaInfo.sisters.length; index++) {
         content += '        <li><a style="color: #338eff;" href="file:///' + 
-            getModulePath(metainfo[className].sisters[index].label) + '\\' + 
-            metainfo[className].sisters[index].label + '.god">' +
-            metainfo[className].sisters[index].label + '</a></li>\n';
+            getModulePath(classInfo[className].metaInfo.sisters[index].label) + '\\' + 
+            classInfo[className].metaInfo.sisters[index].label + '.god">' +
+            classInfo[className].metaInfo.sisters[index].label + '</a></li>\n';
     }
     
     content += '      </ul>\n';
@@ -396,21 +452,30 @@ function getHtmlDocFor(className) : string {
     return content;
 }
 
+function updateLastImplemVersion(className : string) {
+
+   // console.log("updateLastImplemVersion...");
+   var _rp = rp(
+   {
+      method: 'GET',
+      uri: url + '/api/rest/classOrModule/' + className + '/entityStatus', 
+      json: true
+   });
+
+   return _rp.then((statusResponse) => {
+      // console.log("Got new implem version for \"" + className + "\": " + JSON.stringify(statusResponse["implemVersion"]));
+      classInfo[className].lastKnownImplemVersion = statusResponse["implemVersion"];
+   //  console.log("New implem version for \"" + className + "\": " + classInfo[className].lastKnownImplemVersion + " | " + JSON.stringify(classInfo[className].metaInfo));
+   });
+
+}
+
 function updateMetaInfoForClass(classname : string, source : string) : Thenable<tMetaInfo> {
 
-    // var _rp = rp(
-    // {
-    //     method: 'GET',
-    //     uri: url + '/api/rest/repository/path', 
-    //     json: true
-    // });
-    
-    // _rp.then( (response) => {
-    //     ewamPath = response._Result;
-    // });
-
-    if (isUpdatingMetaInfo == true)
-        return null;
+    if (isUpdatingMetaInfo == true) {
+       let dummyPromise = new Promise(() => {return {} });
+       return dummyPromise;
+    }
 
     var _rp = rp(
     {
@@ -428,56 +493,71 @@ function updateMetaInfoForClass(classname : string, source : string) : Thenable<
 
     return _rp
     .then( (response) => {
-        if (metainfo == undefined) {
-            metainfo = [];
-        }
-        metainfo[classname] = response;
-        let htmlDoc = getHtmlDocFor(classname);
-        // connection.console.log('Successfully updated meta-information. \n' + response);
-        isUpdatingMetaInfo = false;
-        return metainfo[classname];
-    })
-    .catch( (response) => {
-        delete metainfo[classname];
-        // connection.console.log('Error while updating meta-information. \n' + response);
-        isUpdatingMetaInfo = false;
-    });       
+      // if (classInfo == undefined) {
+      //    classInfo = [];
+      // }
+      if (!(classname in classInfo)) {
+         classInfo[classname] = {
+            "lastKnownImplemVersion": -1,
+            "metaInfo": response
+         };
+      } else {
+         classInfo[classname].metaInfo = response;
+      }
+
+      let htmlDoc = getHtmlDocFor(classname);
+      // connection.console.log('Successfully updated meta-information. \n' + JSON.stringify(response));
+      isUpdatingMetaInfo = false;
+
+      return classInfo[classname].metaInfo;
+   })
+   .catch( (response) => {
+      // delete classInfo[classname].metaInfo;
+      // connection.console.log('Error while updating meta-information. \n' /*+ response*/ );
+      isUpdatingMetaInfo = false;
+   });       
 }
 
 function getOutlineAt(position : Position, modulename : string) : tOutline {
     let result : tOutline = null;
+
+    if (classInfo[modulename].metaInfo == null || classInfo[modulename].metaInfo == undefined) {
+       return null;
+    }
     
-    for (var index = 0; index < metainfo[modulename].outlines.length; index++) {
+    for (var index = 0; index < classInfo[modulename].metaInfo.outlines.length; index++) {
         
-        if (position.line < metainfo[modulename].outlines[index].range.startpos.line || 
-            position.line > metainfo[modulename].outlines[index].range.endpos.line)
+        if (position.line < classInfo[modulename].metaInfo.outlines[index].range.startpos.line || 
+            position.line > classInfo[modulename].metaInfo.outlines[index].range.endpos.line)
             continue;
             
-        if (position.line == metainfo[modulename].outlines[index].range.startpos.line && 
-            position.character < metainfo[modulename].outlines[index].range.startpos.column)
+        if (position.line == classInfo[modulename].metaInfo.outlines[index].range.startpos.line && 
+            position.character < classInfo[modulename].metaInfo.outlines[index].range.startpos.column)
             continue;
             
-        if (position.line == metainfo[modulename].outlines[index].range.endpos.line && 
-            position.character > metainfo[modulename].outlines[index].range.endpos.column)
+        if (position.line == classInfo[modulename].metaInfo.outlines[index].range.endpos.line && 
+            position.character > classInfo[modulename].metaInfo.outlines[index].range.endpos.column)
             continue;
             
-        result = metainfo[modulename].outlines[index];
+        result = classInfo[modulename].metaInfo.outlines[index];
     }
     
     return result;
 }
 
 connection.onHover((textDocumentPosition: TextDocumentPositionParams) : Thenable<Hover> | Hover => {
-    
+   
     var className = textDocumentPosition.textDocument.uri.substring(
         textDocumentPosition.textDocument.uri.lastIndexOf('/') + 1, textDocumentPosition.textDocument.uri.lastIndexOf('.')
     );
-    
-    if (metainfo == undefined) {
-        metainfo = [];
+
+   //  console.log('Refresh metainfo: ' + className);
+
+    if (classInfo == undefined) {
+        classInfo = {};
     }
     
-    if ( !(className in metainfo) ) {
+    if ( !(className in classInfo) ) {
         updateMetaInfoForClass(className, "")
         .then(
             (meta : tMetaInfo) => {
@@ -527,15 +607,57 @@ connection.onHover((textDocumentPosition: TextDocumentPositionParams) : Thenable
             ]
         }
     }
-    
-    
-    
 });
 
 interface tParseResult {
     docUri: string,
     newSource: string 
 };
+
+connection.onRequest({method: "loadCache"}, 
+                     () => {
+   loadCache();
+   return;
+});
+
+function loadCache() {
+   console.log("Loading cache from '" + workspaceRoot + "\\.tmp\\ewamcache.json'");
+
+   if (fs.existsSync(workspaceRoot + "\\.tmp\\ewamcache.json")) {
+      let cacheString : string = fs.readFileSync(workspaceRoot + "\\.tmp\\ewamcache.json", 'utf8');
+      
+      try {
+         classInfo = JSON.parse(cacheString);
+      } catch (deSerializationError) {
+         console.log("Error loading cache: " + deSerializationError);
+      }
+   }
+}
+
+connection.onRequest({method: "saveCache"}, 
+                     () => {
+   saveCache();
+   return;
+});
+
+function saveCache () {
+   console.log("Saving cache to '" + workspaceRoot + "\\.tmp\\ewamcache.json' ...");
+   
+   if (classInfo == undefined) {
+      return;
+   }
+
+   try {
+
+      if (!fs.existsSync(workspaceRoot + "\\.tmp\\")) {
+         fs.mkdir(workspaceRoot + "\\.tmp\\");
+      }
+
+      fs.writeFileSync( workspaceRoot + "\\.tmp\\ewamcache.json", JSON.stringify(classInfo) );
+   } catch (saveError) {
+      console.log("Error saving cache file '" + workspaceRoot + "\\.tmp\\ewamcache.json' : " + saveError);
+   }
+}
 
 //Parse
 connection.onRequest({method: "parse"}, 
@@ -557,14 +679,16 @@ connection.onRequest({method: "parse"},
         },
         json: true
     });
-    
+
+   //  console.log(JSON.stringify(params));
+
     return _rp.then( (response) => {
         let diagnostics: Diagnostic[] = [];
         
         let result : tParseResult = {docUri:'', newSource:''};
         
         if ("errors" in response && response.errors.length > 0) {
-            
+
             let errors = response["errors"];
             
             for (var index = 0; index < errors.length; index++) {
@@ -580,17 +704,18 @@ connection.onRequest({method: "parse"},
             
             //Successfully parsed or not, send diagnostics anyway. 
             connection.sendDiagnostics({ uri: params.uri, diagnostics });
-            
         } else {
-            
             //Successfully parsed or not, send diagnostics anyway.
             connection.sendDiagnostics({ uri: params.uri, diagnostics });
             
             if (params.notifyNewSource) {
                 updateMetaInfoForClass(params.classname, params.source);
                 
+                
                 result.docUri = params.uri;
                 result.newSource = response.content;
+               //  console.log("params: " + JSON.stringify(params));
+               //  console.log("result: " + JSON.stringify(result));
             }
         }
         
@@ -599,84 +724,83 @@ connection.onRequest({method: "parse"},
 });
 
 connection.onRequest({method: "save"} , 
-                     (params : {
-                        "classname": string,
-                        "source": string,
-                        "notifyNewSource" : boolean,
-                        "uri" : string }) : Thenable<tParseResult> => 
+   (params : {
+      "classname": string,
+      "source": string,
+      "notifyNewSource" : boolean,
+      "uri" : string }) : Thenable<tParseResult> => 
 {
-        
-    var _rp= rp(
-    {
-        method: 'POST',
-        uri: url + '/api/rest/classOrModule/' + params.classname + '/save',
-        body: 
-        {
-            "name": params.classname,
-            "ancestor": "",
-            "content": params.source
-        },
-        json: true
-    });
-    
-    return _rp.then( (response) => {
-        
-        let diagnostics: Diagnostic[] = [];
-        
-        let result : tParseResult = {docUri:'', newSource:''};
-        
-        if ("errors" in response && response.errors.length > 0) {
+   console.log("Saving to tgv...");
+
+   var _rp= rp({
+      method: 'POST',
+      uri: url + '/api/rest/classOrModule/' + params.classname + '/save',
+      body: 
+      {
+         "name": params.classname,
+         "ancestor": "",
+         "content": params.source
+      },
+      json: true
+   });
+   
+   return _rp.then( (response) => {
+      
+      let diagnostics: Diagnostic[] = [];
+      
+      let result : tParseResult = {docUri:'', newSource:''};
+      
+      if ("errors" in response && response.errors.length > 0) {
             
-            let errors = response["errors"];
-            
-            for (var index = 0; index < errors.length; index++) {
-                diagnostics.push({
-                    "severity": DiagnosticSeverity.Error,
-                    "range": {
-                        "start": { "line": errors[index].line, "character": 0 /*errors[index].offSet-1*/ },
-                        "end": { "line": errors[index].line + 1, "character": 0 /*errors[index].offSet*/ }
-                    },
-                    "message": errors[index].msg
-                });
-            }
-            
-            //Successfully parsed or not, send diagnostics anyway. 
-            connection.sendDiagnostics({ uri: params.uri, diagnostics });
-            
-        } else {
-            
-            //Successfully parsed or not, send diagnostics anyway. 
-            connection.sendDiagnostics({ uri: params.uri, diagnostics });
-            
-            if (params.notifyNewSource) {
-                updateMetaInfoForClass(params.classname, params.source);
-                result.docUri = params.uri;
-                result.newSource = response.content;
-            }
-        }
-        
-        return result;
-        
-    });
+         let errors = response["errors"];
+         
+         for (var index = 0; index < errors.length; index++) {
+            diagnostics.push({
+               "severity": DiagnosticSeverity.Error,
+               "range": {
+                  "start": { "line": errors[index].line, "character": 0 /*errors[index].offSet-1*/ },
+                  "end": { "line": errors[index].line + 1, "character": 0 /*errors[index].offSet*/ }
+               },
+               "message": errors[index].msg
+            });
+         }
+         
+      } else {
+         updateLastImplemVersion(params.classname);
+
+         if (params.notifyNewSource) {
+            updateMetaInfoForClass(params.classname, params.source);
+            result.docUri = params.uri;
+            result.newSource = response.content;
+         }
+      }
+
+      //Successfully parsed or not, send diagnostics anyway. 
+      connection.sendDiagnostics({ uri: params.uri, diagnostics });
+      
+      return result;
+      
+   });
 });
+
 
 function getMethodAtLine(className : string, line : number) : string | Thenable<string> {
 
     let method : tMethod;
     let result : string = "";
 
-    if (metainfo == undefined) {
-        metainfo = [];
+    if (classInfo == undefined) {
+        classInfo = {};
     }
 
-    if (metainfo[className] == undefined) {
+    if (classInfo[className].metaInfo == undefined) {
         return updateMetaInfoForClass(className, "")
         .then(
             (meta : tMetaInfo) => {
 
-                for (var index = 0; index < metainfo[className].methods.length; index++) {
+                for (var index = 0; index < classInfo[className].metaInfo.methods.length; index++) {
 
-                    method = metainfo[className].methods[index];
+                    method = classInfo[className].metaInfo.methods[index];
 
                     if (method.range.startpos.line - 1 < line) {
                         result = method.name;
@@ -684,21 +808,21 @@ function getMethodAtLine(className : string, line : number) : string | Thenable<
 
                     if (method.range.endpos.line - 1 > line) {
                         if (index > 0) {
-                            result = metainfo[className].methods[index - 1].name;
+                            result = classInfo[className].metaInfo.methods[index - 1].name;
                         }
                         break;
                     }
                 }
 
-                connection.console.log("result: " + result);
+               //  connection.console.log("result: " + result);
                 return result;
             }
         );
     } else {
 
-        for (var index = 0; index < metainfo[className].methods.length; index++) {
+        for (var index = 0; index < classInfo[className].metaInfo.methods.length; index++) {
 
-            method = metainfo[className].methods[index];
+            method = classInfo[className].metaInfo.methods[index];
 
             if (method.range.startpos.line - 1 < line) {
                 result = method.name;
@@ -706,19 +830,18 @@ function getMethodAtLine(className : string, line : number) : string | Thenable<
 
             if (method.range.endpos.line - 1 > line) {
                 if (index > 0) {
-                    result = metainfo[className].methods[index - 1].name;
+                    result = classInfo[className].metaInfo.methods[index - 1].name;
                 }
                 break;
             }
         }
 
-        connection.console.log("result: " + result);
+      //   connection.console.log("result: " + result);
         return result;
     }
 }
 
-connection.onRequest(
-    {method: "getMethodAtLine"},  
+connection.onRequest( {method: "getMethodAtLine"},  
     (params : { "classname": string, "line": number}) : string | Thenable<string> => {
         // connection.console.log("getMethodAtLine " + params.classname + " " + params.line);
         return getMethodAtLine(params.classname, params.line);
@@ -728,20 +851,20 @@ connection.onRequest(
 function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] {
     let result : SymbolInformation[] = [];
 
-    for (var index = 0; index < metainfo[className].variables.length; index++) {
+    for (var index = 0; index < classInfo[className].metaInfo.variables.length; index++) {
         result.push({
-            "name": metainfo[className].variables[index].name + " : " + metainfo[className].variables[index].variableType,
-            "kind": getSymbolKindFromEntityClass(metainfo[className].variables[index].entity.baseType),
+            "name": classInfo[className].metaInfo.variables[index].name + " : " + classInfo[className].metaInfo.variables[index].variableType,
+            "kind": getSymbolKindFromEntityClass(classInfo[className].metaInfo.variables[index].entity.baseType),
             "location": {
                 "uri": uri,
                 "range": {
                     "start": {
-                        "line": metainfo[className].variables[index].range.startpos.line,
-                        "character": metainfo[className].variables[index].range.startpos.column
+                        "line": classInfo[className].metaInfo.variables[index].range.startpos.line,
+                        "character": classInfo[className].metaInfo.variables[index].range.startpos.column
                     },
                     "end": {
-                        "line": metainfo[className].variables[index].range.endpos.line,
-                        "character": metainfo[className].variables[index].range.endpos.column
+                        "line": classInfo[className].metaInfo.variables[index].range.endpos.line,
+                        "character": classInfo[className].metaInfo.variables[index].range.endpos.column
                     }
                 }
             },
@@ -749,31 +872,31 @@ function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] 
         });
     }
     
-    for (var index = 0; index < metainfo[className].methods.length; index++) {
+    for (var index = 0; index < classInfo[className].metaInfo.methods.length; index++) {
         
         let parameters : string = '';
         
-        for (var paramRank = 0; paramRank < metainfo[className].methods[index].parameters.length; paramRank++) {
+        for (var paramRank = 0; paramRank < classInfo[className].metaInfo.methods[index].parameters.length; paramRank++) {
             if (paramRank >= 1)
                 parameters += ', ';
                 
-            parameters += metainfo[className].methods[index].parameters[paramRank].name + ' : ' + 
-                metainfo[className].methods[index].parameters[paramRank].paramType
+            parameters += classInfo[className].metaInfo.methods[index].parameters[paramRank].name + ' : ' + 
+                classInfo[className].metaInfo.methods[index].parameters[paramRank].paramType
         }
         
         result.push({
-            "name": metainfo[className].methods[index].name + '(' + parameters + ')',
-            "kind": getSymbolKindFromEntityClass(metainfo[className].methods[index].entity.baseType),
+            "name": classInfo[className].metaInfo.methods[index].name + '(' + parameters + ')',
+            "kind": getSymbolKindFromEntityClass(classInfo[className].metaInfo.methods[index].entity.baseType),
             "location": {
                 "uri": uri,
                 "range": {
                     "start": {
-                        "line": metainfo[className].methods[index].range.startpos.line,
-                        "character": metainfo[className].methods[index].range.startpos.column
+                        "line": classInfo[className].metaInfo.methods[index].range.startpos.line,
+                        "character": classInfo[className].metaInfo.methods[index].range.startpos.column
                     },
                     "end": {
-                        "line": metainfo[className].methods[index].range.endpos.line,
-                        "character": metainfo[className].methods[index].range.endpos.column
+                        "line": classInfo[className].metaInfo.methods[index].range.endpos.line,
+                        "character": classInfo[className].metaInfo.methods[index].range.endpos.column
                     }
                 }
             },
@@ -781,20 +904,20 @@ function getMetaInfoFor(className : string, uri : string) : SymbolInformation[] 
         });
     }
     
-    for (var index = 0; index < metainfo[className].types.length; index++) {
+    for (var index = 0; index < classInfo[className].metaInfo.types.length; index++) {
         result.push({
-            "name": metainfo[className].types[index].name,
-            "kind": getSymbolKindFromEntityClass(metainfo[className].types[index].entity.baseType),
+            "name": classInfo[className].metaInfo.types[index].name,
+            "kind": getSymbolKindFromEntityClass(classInfo[className].metaInfo.types[index].entity.baseType),
             "location": {
                 "uri": uri,
                 "range": {
                     "start": {
-                        "line": metainfo[className].types[index].range.startpos.line,
-                        "character": metainfo[className].types[index].range.startpos.column
+                        "line": classInfo[className].metaInfo.types[index].range.startpos.line,
+                        "character": classInfo[className].metaInfo.types[index].range.startpos.column
                     },
                     "end": {
-                        "line": metainfo[className].types[index].range.endpos.line,
-                        "character": metainfo[className].types[index].range.endpos.column
+                        "line": classInfo[className].metaInfo.types[index].range.endpos.line,
+                        "character": classInfo[className].metaInfo.types[index].range.endpos.column
                     }
                 }
             },
@@ -814,11 +937,11 @@ connection.onDocumentSymbol(
         );
         
         // If class name isn't found, bail out
-        if (metainfo == undefined) {
-            metainfo = [];
+        if (classInfo == undefined) {
+            classInfo = {};
         }
         
-        if ( !(className in metainfo) ) {
+        if ( !(className in classInfo) ) {
             return updateMetaInfoForClass(className, "")
             .then((meta : tMetaInfo) => {
                 return getMetaInfoFor(className, docIdentifier.textDocument.uri);
@@ -867,6 +990,10 @@ connection.onDefinition(
 
     let outline : tOutline = getOutlineAt(position.position, moduleName);
 
+    if (outline == null || outline == undefined) {
+       return null;
+    }
+
     // let repoReq = rp({
     //     method: 'GET',
     //     uri: url + '/api/rest/repository/path', 
@@ -882,19 +1009,19 @@ connection.onDefinition(
             json: true });
         
         
-        for (var index = 0; index < metainfo[moduleName].locals.length; index++) {
+        for (var index = 0; index < classInfo[moduleName].metaInfo.locals.length; index++) {
         
-            if (outline.entity.location == metainfo[moduleName].locals[index].entity.location) {
+            if (outline.entity.location == classInfo[moduleName].metaInfo.locals[index].entity.location) {
                 return {
                     uri: position.textDocument.uri,
                     range : {
                         "start": {
-                            "line": metainfo[moduleName].locals[index].range.startpos.line,
-                            "character": metainfo[moduleName].locals[index].range.startpos.column
+                            "line": classInfo[moduleName].metaInfo.locals[index].range.startpos.line,
+                            "character": classInfo[moduleName].metaInfo.locals[index].range.startpos.column
                         },
                         "end": {
-                            "line": metainfo[moduleName].locals[index].range.endpos.line,
-                            "character": metainfo[moduleName].locals[index].range.endpos.column
+                            "line": classInfo[moduleName].metaInfo.locals[index].range.endpos.line,
+                            "character": classInfo[moduleName].metaInfo.locals[index].range.endpos.column
                         }
                     }
                 };
@@ -922,6 +1049,10 @@ connection.onDefinition(
         .then((response) => {
 
             let outFileName : string = getModulePath(outline.entity.ownerName) + "\\" + outline.entity.ownerName + extension;
+
+            if (fs.existsSync(outFileName.replace(/\\/g, '/'))) {
+               fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
+            }
             fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
             
             return {
@@ -956,6 +1087,9 @@ connection.onDefinition(
 
             let outFileName : string = getModulePath(outline.name) + "\\" + outline.name + extension;
 
+            if (fs.existsSync(outFileName.replace(/\\/g, '/'))) {
+               fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
+            }
             fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
             
             return {
@@ -1004,13 +1138,18 @@ connection.onReferences(
         param.textDocument.uri.lastIndexOf('/') + 1, param.textDocument.uri.lastIndexOf('.')
     );
     
-    let metaClass = metainfo[moduleName];
+    let metaClass = classInfo[moduleName].metaInfo;
     
     let outline : tOutline = getOutlineAt(param.position, moduleName);
 
+    let ownerName : string = outline.entity.ownerName;
+    if (outline.entity.ownerName == undefined || outline.entity.ownerName == "") {
+       ownerName = "Nil";
+    }
+
     let whereUsedReq = rp({
         method: 'GET',
-        uri: url + '/api/rest/entity/' + outline.entity.ownerName + '/' + outline.entity.label + '/WhereUsed',
+        uri: url + '/api/rest/entity/' + ownerName + '/' + outline.entity.label + '/WhereUsed',
         json: true 
     });
         
@@ -1219,11 +1358,11 @@ connection.onSignatureHelp(
 
 connection.onRequest({method: "getModuleDocumentation"} , 
     (params : {"moduleName": string }) : string | Thenable<string> => {
-        if (metainfo == undefined) {
-            metainfo = [];
+        if (classInfo == undefined) {
+            classInfo = {};
         }
         
-        if ( !(params.moduleName in metainfo) ) {
+        if ( !(params.moduleName in classInfo) ) {
             return updateMetaInfoForClass(params.moduleName, "")
             .then(
                 (success) => {
@@ -1534,10 +1673,6 @@ connection.onWorkspaceSymbol(
     }
 );
 
-connection.onRenameRequest( (RenameParams) => { return null;} );
-
-connection.onCodeAction( (params : CodeActionParams) : Command[] => {return null;});
-
 let bundleCacheRefreshing : Boolean = false;
 let bundleCache;
 
@@ -1705,6 +1840,102 @@ function syncWorkspaceRepo() : Thenable<Boolean> {
     });
 
 }
+
+connection.onRequest({method: "getLastknownImplemVersion"} , 
+                     ( param : {"moduleName": string} ) : number => 
+{
+    return getLastknownImplemVersion(param.moduleName);
+});
+
+function getLastknownImplemVersion(className : string) : number {
+   let result : number = -1;
+
+   if ( !(className in classInfo) ) {
+      return -1;
+   }
+
+   if (classInfo[className].lastKnownImplemVersion == undefined) {
+      // console.log("undefined !!" + JSON.stringify(classInfo[className].metaInfo));
+      return -1;
+   }
+
+   result = classInfo[className].lastKnownImplemVersion;
+
+   return result;
+}
+
+connection.onCodeAction( (params : CodeActionParams) : Command[] => {return null;});
+
+connection.onDocumentFormatting( (params : DocumentFormattingParams) : TextEdit[] => {
+   return null;
+});
+
+connection.onRenameRequest( (params : RenameParams) : WorkspaceEdit => {
+   
+   let className : string = params.textDocument.uri.substring(
+        params.textDocument.uri.lastIndexOf('/') + 1, params.textDocument.uri.lastIndexOf('.')
+    );
+   
+   let entityOutline : tOutline = getOutlineAt(params.position, className);
+
+   if (entityOutline == undefined || entityOutline == null) {
+      connection.window.showWarningMessage("Sorry, no symbol found at this position.")
+      return { "changes":{} };
+   }
+
+   let ownerName : string = entityOutline.entity.ownerName;
+
+   if (ownerName == "") {
+      ownerName = "Nil";
+   }
+
+   let renameReq = rp({
+      method: 'POST',
+      uri: url + '/api/rest/entity/' + ownerName + '/' + entityOutline.entity.label + '/rename',
+      body : {
+         "newName":  params.newName,
+         "repoParam": {
+            "repository_url": repoParams.repository_url,
+            "basePath": repoParams.basePath,
+            "workspace_subdir": repoParams.workspace_subdir,
+            "dependencies_subdir": repoParams.dependencies_subdir 
+         }
+      },
+      json: true 
+   });
+
+   connection.window.showInformationMessage("Propagating rename in source code, please wait...");
+
+   return renameReq.then((response) => {
+      let result : WorkspaceEdit = { changes: {} };
+
+      // We are renaming a class or module, we need to change it's metainfo, and rename the associated file too ...
+      if (entityOutline.entity.exactType == "aModuleDef" || entityOutline.entity.exactType == "aClassDef") {
+
+         if (entityOutline.name in classInfo) {
+            classInfo[params.newName] = classInfo[entityOutline.name];
+            delete classInfo[entityOutline.name];
+            updateMetaInfoForClass(params.newName, "");
+         }
+
+         // let oldFileName : string = getModulePath(entityOutline.name) + "\\" + entityOutline.name + ".god";
+         // let newFileName : string = oldFileName.substring(0, oldFileName.lastIndexOf("\\")) + "\\" +  params.newName + ".god";
+
+      } else {
+         updateMetaInfoForClass(className, "");
+      }
+      
+
+      connection.window.showInformationMessage("Rename successfully completed.");
+
+      return result;
+   }).catch((response) => {
+      let result : WorkspaceEdit = { changes: {} };
+      // connection.sendNotification({method:"showNotification"}, {type:"error", message:"Rename failed"});
+      connection.window.showErrorMessage("Rename failed : " + response);
+      return result;
+   });
+});
 
 // Listen on the connection
 connection.listen();

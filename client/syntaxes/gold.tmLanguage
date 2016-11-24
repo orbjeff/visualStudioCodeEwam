@@ -101,7 +101,7 @@
 				<key>1</key>
 				<dict>
 					<key>name</key>
-					<string>storage.type.gold</string>
+					<string>storage.type</string>
 				</dict>
 			</dict>
 			<key>comment</key>
@@ -115,7 +115,7 @@
 			<key>match</key>
 			<string>\b(num)\([0-9]+\)\b</string>
 			<key>name</key>
-			<string>storage.type.gold</string>
+			<string>storage.type</string>
 		</dict>
 		<dict>
 			<key>captures</key>
@@ -157,7 +157,7 @@
 			<key>comment</key>
 			<string>Flow control keywords</string>
 			<key>match</key>
-			<string>\b(if|then|elseIf|else|endIf|while|endWhile|for|to|downTo|forEach|endFor|repeat|until|loop|endLoop|break|try|catch|when|endWhen|finally|endTry|switch|endSwitch|when)\b</string>
+			<string>\b(if|then|elseIf|elseif|else|endIf|while|endWhile|for|to|downTo|forEach|endFor|repeat|until|loop|endLoop|break|try|catch|when|endWhen|finally|endTry|switch|endSwitch|when)\b</string>
 		</dict>
 		<dict>
 			<key>captures</key>
@@ -218,6 +218,61 @@
 					<string>constant.character</string>
 				</dict>
 			</array>
+		</dict>
+		<dict>
+			<key>begin</key>
+			<string>\[</string>
+			<key>comment</key>
+			<string>Annotations</string>
+			<key>end</key>
+			<string>\]</string>
+			<key>name</key>
+			<string>punctuation.definition.tag</string>
+			<key>patterns</key>
+			<array>
+				<dict>
+					<key>match</key>
+					<string>(type:)</string>
+					<key>name</key>
+					<string>keyword.control</string>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>begin</key>
+			<string>(function)\b([a-zA-Z][a-zA-Z0-9]*)\b(\(.*\))?\b(return)\b([a-zA-Z][a-zA-Z0-9]*)</string>
+			<key>beginCaptures</key>
+			<dict>
+				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>entity.name.function</string>
+				</dict>
+			</dict>
+			<key>comment</key>
+			<string>Function definition</string>
+			<key>end</key>
+			<string>(endFunc)</string>
+			<key>name</key>
+			<string>entity.other</string>
+		</dict>
+		<dict>
+			<key>begin</key>
+			<string>(procedure)\b([a-zA-Z][a-zA-Z0-9]*)\b</string>
+			<key>beginCaptures</key>
+			<dict>
+				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>entity.name.function</string>
+				</dict>
+			</dict>
+			<key>comment</key>
+			<string>Procedure definition</string>
+			<key>end</key>
+			<string>(endProc)</string>
+			<key>name</key>
+			<string>entity.other</string>
 		</dict>
 	</array>
 	<key>scopeName</key>

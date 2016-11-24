@@ -8,8 +8,7 @@
 			"request": "attach",
 			"port": 6004,
 			"sourceMaps": true,
-			"outDir": "${workspaceRoot}/../client/server",
-			"timeout": 10000
+			"outDir": "${workspaceRoot}/../client/server"
 		}
 	]
 }
