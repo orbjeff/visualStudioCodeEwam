@@ -5,11 +5,14 @@
    "version": "0.2.7",
    "publisher": "mphasiswyde",
    "license" : "Mphasis Wyde",
+   "categories": [
+      "Languages", "Snippets", "Linters", "Themes", "Formatters"
+   ],
    "galleryBanner": {
       "color": "#5c2d91",
       "theme": "dark"
    },
-   "icon": "images/eWam.png",
+   "icon": "images/logo.png",
    "bugs": {
       "url": "https://github.com/MphasisWyde/visualStudioCodeEwam/issues",
       "email": "support@wyde.com"
