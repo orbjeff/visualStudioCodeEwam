@@ -22,9 +22,6 @@
       "url": "https://github.com/MphasisWyde/visualStudioCodeEwam.git"
    },
    "homepage": "https://github.com/MphasisWyde/visualStudioCodeEwam/blob/master/README.md",
-   "categories": [
-      "Other"
-   ],
    "engines": {
       "vscode": "^1.6.1",
       "node":"*"
