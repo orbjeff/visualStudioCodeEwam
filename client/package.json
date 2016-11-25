@@ -2,7 +2,7 @@
    "name": "ewamvscadaptor",
    "displayName": "eWam Plugin",
    "description": "eWam Plugin",
-   "version": "0.2.7",
+   "version": "0.3.0",
    "publisher": "mphasiswyde",
    "license" : "Mphasis Wyde",
    "categories": [
