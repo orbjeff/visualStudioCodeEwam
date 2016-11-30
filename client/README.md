@@ -2,9 +2,8 @@
 
 This plugin leverage the eWam API to let you edit eWam Code With Visual Studio Code.
 
-## Take a tour...
-![eWam VSC](client/images/tour.gif)
+More info [here](https://github.com/MphasisWyde/visualStudioCodeEwam).
 
-## Requirements
-* Visual Studio Code 10.8
-* [ModelAPI v1](https://github.com/MphasisWyde/WydeActiveModelerAPI)
+## Take a tour...
+![eWam VSC](images/tour.gif)
+
