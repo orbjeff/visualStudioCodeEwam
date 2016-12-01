@@ -2,7 +2,7 @@
    "name": "ewamvscadaptor",
    "displayName": "eWam Plugin",
    "description": "eWam Plugin",
-   "version": "0.3.1",
+   "version": "0.3.2",
    "publisher": "mphasiswyde",
    "license" : "Mphasis Wyde",
    "categories": [
@@ -109,8 +109,8 @@
          },
          {
             "command": "ewam.showModuleDocumentation",
-            "key": "alt+t",
-            "mac": "alt+t",
+            "key": "alt+l",
+            "mac": "alt+l",
             "when": "editorTextFocus"
          }
       ],
@@ -172,6 +172,10 @@
             "title": "eWam: Sync Dependencies Repository"
          },
          {
+            "command": "ewam.syncWorkspaceRepo",
+            "title": "eWam: Sync Project Repository"
+         },
+         {
             "command": "ewam.try",
             "title": "eWam: Try it"
          },
@@ -202,6 +206,10 @@
          {
             "command": "ewam.dummyCommand",
             "title": "eWam: Dummy Command"
+         },
+         {
+            "command": "ewam.refreshFromTGV",
+            "title": "eWam: Refresh From TGV"
          }
       ],
       "languages": [

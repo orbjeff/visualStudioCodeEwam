@@ -1,3 +1,7 @@
+## Alpha 0.3.2 - *Deliver on December 1, 2016*
+   - [x] Refresh source from TGV
+   - [x] Git free functionning
+   
 ## Alpha 0.3.1 - *Deliver on November 30, 2016*
    - [x] Added file watching and metainfo refresh on focus
 

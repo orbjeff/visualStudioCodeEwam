@@ -65,6 +65,21 @@ let fileWatcher: vscode.FileSystemWatcher;
 // 	documents.all().forEach(validateTextDocument);
 // });
 
+function refreshFromTGV (doc? : vscode.TextDocument) {
+
+   if (doc == undefined || !doc) {
+      if (vscode.window.activeTextEditor != undefined) {
+         doc = vscode.window.activeTextEditor.document;
+      } else {
+         return;
+      }
+   }
+
+   let moduleName: string = getOpenClassName(doc);
+
+   openClass(moduleName);
+   RefreshMetaInfo(moduleName);
+}
 
 function isGoldDocument(fileUri: vscode.Uri) : Boolean {
    let filePath : string = fileUri.toString();
@@ -109,7 +124,7 @@ function LoadMetaInfo(moduleName: string) {
 }
 
 function RefreshMetaInfo(moduleName: string) {
-   console.log("client RefreshMetaInfo " + moduleName);
+   // console.log("client RefreshMetaInfo " + moduleName);
    return languageClient.sendRequest(
       { method: "RefreshMetaInfo" },
       { moduleName: moduleName }
@@ -1144,7 +1159,10 @@ function searchClass(callBackFunc: searchClassCallBack, promptText: string = 'Cl
             })
             .then(function (response) {
                // console.log(response);
-               vscode.window.showQuickPick(getDataAsTable(response))
+               if (getDataAsTable(response).length == 0) {
+                  vscode.window.showWarningMessage(criteria + " not found.");
+               } else {
+                  vscode.window.showQuickPick(getDataAsTable(response))
                   .then((selection) => {
                      if (selection != undefined) {
                         if (selection.exactType == "aClassDef" || selection.exactType == "aReimplemModuleDef" ||
@@ -1156,6 +1174,7 @@ function searchClass(callBackFunc: searchClassCallBack, promptText: string = 'Cl
 
                      }
                   });
+               }
             })
             .catch(function (response) {
                console.log(response);
@@ -1470,6 +1489,12 @@ export function activate(context: vscode.ExtensionContext) {
       dummyCommand();
    });
    context.subscriptions.push(disposable);
+
+   disposable = vscode.commands.registerCommand('ewam.refreshFromTGV', function () {
+      refreshFromTGV();
+   });
+   context.subscriptions.push(disposable);
+   
 
    //  disposable = vscode.commands.registerCommand('ewam.diffTest', function() {
    //      diffTest();
