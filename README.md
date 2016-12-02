@@ -185,6 +185,9 @@ endProc
 ## Alpha 0.3.2 - *Deliver on December 1, 2016*
    - [x] Refresh source from TGV
    - [x] Git free compliance
+   Bug fixes and ergonomy
+   - [x] Fixed non-normalize path when opening a file
+   - [x] Improved ignored patterns
 
 ## Alpha 0.3.1 - *Deliver on November 30, 2016*
    - [x] Added file watching and metainfo refresh on focus
