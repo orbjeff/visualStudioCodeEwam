@@ -17,6 +17,7 @@ import {
 
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as path from 'path';
 
 let rp = require('request-promise');
 
@@ -624,8 +625,6 @@ connection.onHover((textDocumentPosition: TextDocumentPositionParams): Thenable<
    }
 });
 
-
-
 interface tParseResult {
    docUri: string,
    newSource: string
@@ -736,7 +735,7 @@ connection.onRequest<tParseParam, tParseResult, {}> ({ method: "parse" }, (param
 
 connection.onRequest<tParseParam, tParseResult, {}> ({ method: "save" },
    (params: tParseParam): Thenable<tParseResult> => {
-      console.log("Saving to tgv...");
+      connection.console.log("Saving " + params.classname + " to tgv...");
 
       var _rp = rp({
          method: 'POST',
@@ -1074,30 +1073,30 @@ connection.onDefinition(
          return definitionReq
             .then((defRange: tRange) => {
                // Retrive the owner content
-               return contentReq
-                  .then((response) => {
+               return contentReq.then((response) => {
 
-                     let outFileName: string = getModulePath(outline.entity.ownerName) + "\\" + outline.entity.ownerName + extension;
+                  let outFileName: string = getModulePath(outline.entity.ownerName) + "\\" + outline.entity.ownerName + extension;
+                  outFileName = path.normalize(outFileName);
 
-                     if (fs.existsSync(outFileName.replace(/\\/g, '/'))) {
-                        fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
-                     }
-                     fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
+                  if (fs.existsSync(outFileName.replace(/\\/g, '/'))) {
+                     fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
+                  }
+                  fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
 
-                     return {
-                        uri: "file:///" + outFileName.replace(/\\/g, '/'),
-                        range: {
-                           "start": {
-                              "line": defRange.startpos.line,
-                              "character": defRange.startpos.column
-                           },
-                           "end": {
-                              "line": defRange.endpos.line,
-                              "character": defRange.endpos.column
-                           }
+                  return {
+                     uri: "file:///" + outFileName.replace(/\\/g, '/'),
+                     range: {
+                        "start": {
+                           "line": defRange.startpos.line,
+                           "character": defRange.startpos.column
+                        },
+                        "end": {
+                           "line": defRange.endpos.line,
+                           "character": defRange.endpos.column
                         }
-                     };
-                  });
+                     }
+                  };
+               });
             });
 
       } else {
@@ -1112,30 +1111,30 @@ connection.onDefinition(
 
          let repoPath = repoParams.basePath.replace(/\\/g, '/');
          // Retrive the owner content
-         return contentReq
-            .then((response) => {
+         return contentReq.then((response) => {
 
-               let outFileName: string = getModulePath(outline.name) + "\\" + outline.name + extension;
+            let outFileName: string = getModulePath(outline.name) + "\\" + outline.name + extension;
+            outFileName = path.normalize(outFileName);
+            
+            if (fs.existsSync(outFileName.replace(/\\/g, '/'))) {
+               fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
+            }
+            fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
 
-               if (fs.existsSync(outFileName.replace(/\\/g, '/'))) {
-                  fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
-               }
-               fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
-
-               return {
-                  uri: "file:///" + outFileName.replace(/\\/g, '/'),
-                  range: {
-                     "start": {
-                        "line": 0,
-                        "character": 0
-                     },
-                     "end": {
-                        "line": 0,
-                        "character": 0
-                     }
+            return {
+               uri: "file:///" + outFileName.replace(/\\/g, '/'),
+               range: {
+                  "start": {
+                     "line": 0,
+                     "character": 0
+                  },
+                  "end": {
+                     "line": 0,
+                     "character": 0
                   }
-               };
-            });
+               }
+            };
+         });
       }
    });
 
