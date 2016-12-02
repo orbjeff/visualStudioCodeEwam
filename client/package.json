@@ -3,8 +3,9 @@
    "displayName": "eWam Plugin",
    "description": "eWam Plugin",
    "version": "0.3.2",
+   "author": "Wyde",
    "publisher": "mphasiswyde",
-   "license" : "Mphasis Wyde",
+   "license" : "MIT",
    "categories": [
       "Languages", "Snippets", "Linters", "Themes", "Formatters"
    ],
