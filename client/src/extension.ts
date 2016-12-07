@@ -65,6 +65,17 @@ let fileWatcher: vscode.FileSystemWatcher;
 // 	documents.all().forEach(validateTextDocument);
 // });
 
+function openIDE() : Thenable<Boolean> {
+   return axios.default.get(config.get('url') + '/system/OpenIDE')
+   .then( (response) => {
+      if (response.data == true) {
+         return true;
+      } else {
+         return false;
+      }
+   });
+}
+
 function refreshFromTGV (doc? : vscode.TextDocument) {
 
    if (doc == undefined || !doc) {
@@ -1494,7 +1505,6 @@ export function activate(context: vscode.ExtensionContext) {
       refreshFromTGV();
    });
    context.subscriptions.push(disposable);
-   
 
    //  disposable = vscode.commands.registerCommand('ewam.diffTest', function() {
    //      diffTest();
@@ -1510,6 +1520,12 @@ export function activate(context: vscode.ExtensionContext) {
       setReadOnly(vscode.window.activeTextEditor.document.fileName);
    });
    context.subscriptions.push(disposable);
+
+   disposable = vscode.commands.registerCommand('ewam.openIDE', function () {
+      openIDE();
+   });
+   context.subscriptions.push(disposable);
+   
 
    parseBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
    parseBarItem.text = '$(beaker) Parse'

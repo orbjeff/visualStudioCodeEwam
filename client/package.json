@@ -118,7 +118,7 @@
       "commands": [
          {
             "command": "ewam.openEntity",
-            "title": "eWam: Open Entity"
+            "title": "eWam: Open Class or Module"
          },
          {
             "command": "ewam.checkIn",
@@ -138,7 +138,7 @@
          },
          {
             "command": "ewam.scenario",
-            "title": "eWam: Scenario"
+            "title": "eWam: Open Scenario"
          },
          {
             "command": "ewam.deliver",
@@ -146,11 +146,11 @@
          },
          {
             "command": "ewam.newClass",
-            "title": "eWam: New Class"
+            "title": "eWam: Create New Class"
          },
          {
             "command": "ewam.newModule",
-            "title": "eWam: New Module"
+            "title": "eWam: Create New Module"
          },
          {
             "command": "ewam.metaInfo",
@@ -193,24 +193,31 @@
             "title": "eWam: Sync Git"
          },
          {
-            "command": "ewam.diffTest",
-            "title": "eWam: Diff Test"
-         },
-         {
             "command": "ewam.createScenario",
             "title": "eWam: Create New Scenario"
          },
          {
-            "command": "ewam.setReadOnly",
-            "title": "eWam: Set Read Only"
-         },
-         {
-            "command": "ewam.dummyCommand",
-            "title": "eWam: Dummy Command"
-         },
-         {
             "command": "ewam.refreshFromTGV",
             "title": "eWam: Refresh From TGV"
+         },
+         {
+            "command": "ewam.openIDE",
+            "title": "eWam: Open IDE"
+         },
+
+
+
+         {
+            "dummy_command": "ewam.diffTest",
+            "dummy_title": "eWam: Diff Test"
+         },
+         {
+            "dummy_command": "ewam.setReadOnly",
+            "dummy_title": "eWam: Set Read Only"
+         },
+         {
+            "dummy_command": "ewam.dummyCommand",
+            "dummy_title": "eWam: Dummy Command"
          }
       ],
       "languages": [

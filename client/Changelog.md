@@ -1,9 +1,13 @@
-## Alpha 0.3.2 - *Deliver on December 1, 2016*
+## Alpha 0.3.2 - *Deliver on December 09, 2016*
    - [x] Refresh source from TGV
    - [x] Git free compliance
+   - [x] Added Open IDE feature
+
    Bug fixes and ergonomy
    - [x] Fixed non-normalize path when opening a file
-   - [x] Improved ignored patterns
+   - [x] Improved ignored patterns in .gitignore
+   - [x] Improved eWam command names
+   - [x] Fixed Open Reimplem
    
 ## Alpha 0.3.1 - *Deliver on November 30, 2016*
    - [x] Added file watching and metainfo refresh on focus
@@ -27,15 +31,15 @@
 - [x] Store metainfo and temp diff files in a .tmp folder in rootfolder
 
 - Bug fixes and ergonomy
-    - [x] WhereUsed : method are shown in the result...
-    - [x] GetNodeURL not working. Waiting for Advanced Framework fix (done, see Fred's email "RE: Bug dans le serializer ?")
-      - [x] Fix Override
-      - [x] Fix Toggle breakpoint
-    - [x] After a rename, new source code seems not to be always regenerated correctly. <= this was due to errors. The resulting source wasn't truncated
-    - [x] Annotation errors aren't retrieved
-      - [/] Parse / reformat isn't done in this case, eventhough no error is retrieved
-      - [x] Save propably also fails, but no user feedback : provide notification in case of saving incorrectly parsed file
-    - [x] crash on searchEntities with aWF* classes
+   - [x] WhereUsed : method are shown in the result...
+   - [x] GetNodeURL not working. Waiting for Advanced Framework fix (done, see Fred's email "RE: Bug dans le serializer ?")
+   - [x] Fix Override
+   - [x] Fix Toggle breakpoint
+   - [x] After a rename, new source code seems not to be always regenerated correctly. <= this was due to errors. The resulting source wasn't truncated
+   - [x] Annotation errors aren't retrieved
+   - [/] Parse / reformat isn't done in this case, eventhough no error is retrieved
+   - [x] Save propably also fails, but no user feedback : provide notification in case of saving incorrectly parsed file
+   - [x] crash on searchEntities with aWF* classes
 
 ## Alpha 0.2.6 - *Deliver on September 21, 2016*
     
@@ -43,50 +47,50 @@
 - [x] review diff / merge capabilities of VS Code (context of reimplems) : we diff whatever we want, using URI, so it could even be a content provider I expect
 
 - Bug fixes and ergonomy
-    - [x] Module parsing error due to aClassPreparer
-    - [x] Breakpoint API not working
-        - [x] Breakpoint UI refreshing
-    - [x] New class : wrong parent (also check new module)
-        - [x] + improved new class input (choose parent class from a suggestion list)
-        - [x] Crash when class already exist : used IsValid
-    - [x] Repair Run Application
-    - [/] Add Open IDE feature
-    - [x] Clean debug outputs
-    - [x] Lookup API crashes
+   - [x] Module parsing error due to aClassPreparer
+   - [x] Breakpoint API not working
+      - [x] Breakpoint UI refreshing
+   - [x] New class : wrong parent (also check new module)
+      - [x] + improved new class input (choose parent class from a suggestion list)
+      - [x] Crash when class already exist : used IsValid
+   - [x] Repair Run Application
+   - [/] Add Open IDE feature
+   - [x] Clean debug outputs
+   - [x] Lookup API crashes
     
 ## Alpha 0.2.5 - *Deliver on September 14, 2016*
 
 - [x] Add code snippets
 - [x] Improve overall usability / stability, test all features ! Be the user developper.
-    - [x] Implement a contextualized way to test things (run method, run class, run scenario ...)
-    - [x] Make safe testing API blocking    
+   - [x] Implement a contextualized way to test things (run method, run class, run scenario ...)
+   - [x] Make safe testing API blocking    
 - [x] sync all from VS Code (tgv sync + local dependencies + sync git)
-    - [x] check git ignore
+   - [x] check git ignore
 - [x] API: saves the module (ctrl+s) **even if inconsistent**
 - Bug fixes and ergonomy
-    - [x] "UBS in ascendants" error on "proc". Should be raised as a syntax error. In the meantime: /ERRORMESSAGE:FALSE
-        - [x] make /ERRORMESSAGE:FALSE default when launching as a service
-    - [x] Module creation doesn't work ...
-    - [x] Breakpoint API not working
-    - ~~[/] Add Open IDE feature~~ not possible.
+   - [x] "UBS in ascendants" error on "proc". Should be raised as a syntax error. In the meantime: /ERRORMESSAGE:FALSE
+      - [x] make /ERRORMESSAGE:FALSE default when launching as a service
+   - [x] Module creation doesn't work ...
+   - [x] Breakpoint API not working
+   - ~~[/] Add Open IDE feature~~ not possible.
 
 ## Alpha 0.2.4 - *Deliver on July 29, 2016*
 
 - [x] Source code management
-    - [x] JSON package index file : description of the repository  
-    - [x] bundle JSON package : description file for a bundle, describing it's deliveries/classes/modules/everything content and hierarchy and **it's URL !**
-    - [x] Dump repository from integrator env, based on bundles (+produce associated index and package files)
-        - [x] Dump the dependencies source code
-        - [x] Dump the workspace source code
-    - [x] Dump repository based on given index file + bundle package files
-    - [x] Keep a local VS Code cache of the classes bundles/deliveries. Keep in mind we the developper does not necessarily have the bundles / deliveries installed. Usually just synced from TGV
-    - [ ] Add watch on bundleIndex.json in order to detect bundle changes
-    - ~~[ ] Add workspace setting for the data repo building~~ : Not really needed for now
-    - [x] Dump a module in the source repository based on bundleIndex.json file description and cache (e.g. in $rootPath/$Bundle/$Delivery/module.gold)
-    - [x] Review plugin to account for these changes
-        - [x] on the fly HTML documentation production (paths provided in the documentation links)
-        - [x] path where the file of a module is retrieved when opening
-        - [x] path where the file of a module is stored when saving
+   - [x] JSON package index file : description of the repository  
+   - [x] bundle JSON package : description file for a bundle, describing it's deliveries/classes/modules/everything content and hierarchy and **it's URL !**
+   - [x] Dump repository from integrator env, based on bundles (+produce associated index and package files)
+      - [x] Dump the dependencies source code
+      - [x] Dump the workspace source code
+   - [x] Dump repository based on given index file + bundle package files
+   - [x] Keep a local VS Code cache of the classes bundles/deliveries. Keep in mind we the developper does not necessarily have the bundles / deliveries installed. Usually just synced from TGV
+   - [ ] Add watch on bundleIndex.json in order to detect bundle changes
+   - ~~[ ] Add workspace setting for the data repo building~~ : Not really needed for now
+   - [x] Dump a module in the source repository based on bundleIndex.json file description and cache (e.g. in $rootPath/$Bundle/$Delivery/module.gold)
+   - [x] Review plugin to account for these changes
+      - [x] on the fly HTML documentation production (paths provided in the documentation links)
+      - [x] path where the file of a module is retrieved when opening
+      - [x] path where the file of a module is stored when saving
 - [ ] review diff / merge capabilities of VS Code (context of reimplems)
 
 ```
@@ -109,10 +113,10 @@ Additional tasks :
 - [x] Improve outline : display full path to entity
 - [x] Polish syntax highlighting : capture types in variable declarations
 - Bug fixes and ergonomy
-    - [x] fix item kind of suggestions
-    - [x] Diagnostics doesn't work anymore (reformat not working anymore either)
-    - [ ] Improve overall usability / stability
-    - [ ] API performance : use Florian's serializer for simple records (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled)
+   - [x] fix item kind of suggestions
+   - [x] Diagnostics doesn't work anymore (reformat not working anymore either)
+   - [ ] Improve overall usability / stability
+   - [ ] API performance : use Florian's serializer for simple records (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled)
 
 ## Alpha 0.2.3 - *Deliver on May 20, 2016*
 
@@ -122,8 +126,8 @@ Additional tasks :
 - [x] Go to Definition on local variables
 - [x] Polish syntax highlighting
 - Bug fixes
-    - [x] Too large CString assignment
-    - [x] "Go To Definition" doesn't work anymore
+   - [x] Too large CString assignment
+   - [x] "Go To Definition" doesn't work anymore
 
 ## Alpha 0.2.2 - *Deliver on May 13, 2016*
 
@@ -132,8 +136,8 @@ Additional tasks :
 - ~~[ ] Make method parameter suggestions be documented~~ : Impossible due to underlying API restrictions
 - [x] Class tree visualization : simple class tree interact
 - [x] Class documentation : explore possibilities offered by virtual documents (investigate how to implement the previewHtml, cf. https://code.visualstudio.com/updates/vJanuary#_extension-authoring, or Code Flower extension http://www.redotheweb.com/CodeFlower/, https://bitbucket.org/wynsure/code-flower-and-dependency-wheel) :
-    - unable to detect when we try to open a class (a file) from the preview links
-    - vscode.previewHtml seems buggy : if I open it, close the preview, and re-open it, a crash occurs
+   - unable to detect when we try to open a class (a file) from the preview links
+   - vscode.previewHtml seems buggy : if I open it, close the preview, and re-open it, a crash occurs
 - [x] Find references (Where used)
 
 ## Alpha 0.2.1 - *Deliver on May 4, 2016* [<img src="https://cdn0.iconfinder.com/data/icons/star-wars/48/x-wing-512.png" width="70"/>](http://www.google.fr/search?q=may+the+4th)

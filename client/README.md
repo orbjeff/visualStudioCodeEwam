@@ -2,8 +2,15 @@
 
 This plugin leverage the eWam API to let you edit eWam Code With Visual Studio Code.
 
-More info [here](https://github.com/MphasisWyde/visualStudioCodeEwam).
-
 ## Take a tour...
-![eWam VSC](images/tour.gif)
+![eWam VSC](https://github.com/MphasisWyde/visualStudioCodeEwam/raw/master/tour.gif)
 
+## Documentation
+
+* [Documentation](https://mphasiswyde.atlassian.net/wiki/display/RTS/Visual+Studio+Code+extension)
+* [Tutorial and feature documentation](https://mphasiswyde.atlassian.net/wiki/display/RTS/Tutorial)
+* [Release notes and roadmap](https://mphasiswyde.atlassian.net/wiki/display/RTS/Release+Notes)
+
+## Source code
+
+The source code is [available on github](https://github.com/MphasisWyde/visualStudioCodeEwam) : [https://github.com/MphasisWyde/visualStudioCodeEwam](https://github.com/MphasisWyde/visualStudioCodeEwam).  
