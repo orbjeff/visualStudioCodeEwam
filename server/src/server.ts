@@ -377,7 +377,8 @@ connection.onCompletion(
          // console.log("Completion result: " + JSON.stringify(result));
 
          return result;
-      }).catch((response: tCompletionList) => {
+      }).catch((rejectReason) => {
+         connection.window.showErrorMessage("Error: " + rejectReason);
          return {
             "isIncomplete": true,
             "items": []
@@ -482,6 +483,8 @@ function updateLastImplemVersion(className: string) {
       // console.log("Got new implem version for \"" + className + "\": " + JSON.stringify(statusResponse["implemVersion"]));
       classInfo[className].lastKnownImplemVersion = statusResponse["implemVersion"];
       //  console.log("New implem version for \"" + className + "\": " + classInfo[className].lastKnownImplemVersion + " | " + JSON.stringify(classInfo[className].metaInfo));
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
    });
 
 }
@@ -507,31 +510,30 @@ function updateMetaInfoForClass(classname: string, source: string): Thenable<tMe
 
    isUpdatingMetaInfo = true;
 
-   return _rp
-      .then((response) => {
-         // if (classInfo == undefined) {
-         //    classInfo = [];
-         // }
-         if (!(classname in classInfo)) {
-            classInfo[classname] = {
-               "lastKnownImplemVersion": -1,
-               "metaInfo": response
-            };
-         } else {
-            classInfo[classname].metaInfo = response;
-         }
+   return _rp.then((response) => {
+      // if (classInfo == undefined) {
+      //    classInfo = [];
+      // }
+      if (!(classname in classInfo)) {
+         classInfo[classname] = {
+            "lastKnownImplemVersion": -1,
+            "metaInfo": response
+         };
+      } else {
+         classInfo[classname].metaInfo = response;
+      }
 
-         let htmlDoc = getHtmlDocFor(classname);
-         // connection.console.log('Successfully updated meta-information. \n' + JSON.stringify(response));
-         isUpdatingMetaInfo = false;
+      let htmlDoc = getHtmlDocFor(classname);
+      // connection.console.log('Successfully updated meta-information. \n' + JSON.stringify(response));
+      isUpdatingMetaInfo = false;
 
-         return classInfo[classname].metaInfo;
-      })
-      .catch((response) => {
-         // delete classInfo[classname].metaInfo;
-         // connection.console.log('Error while updating meta-information. \n' /*+ response*/ );
-         isUpdatingMetaInfo = false;
-      });
+      return classInfo[classname].metaInfo;
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
+      // delete classInfo[classname].metaInfo;
+      // connection.console.log('Error while updating meta-information. \n' /*+ rejectReason*/ );
+      isUpdatingMetaInfo = false;
+   });
 }
 
 function getOutlineAt(position: Position, modulename: string): tOutline {
@@ -730,6 +732,8 @@ connection.onRequest<tParseParam, tParseResult, {}> ({ method: "parse" }, (param
       }
 
       return result;
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
    });
 });
 
@@ -785,6 +789,8 @@ connection.onRequest<tParseParam, tParseResult, {}> ({ method: "save" },
 
          return result;
 
+      }).catch((rejectReason) => {
+         connection.window.showErrorMessage("Error: " + rejectReason);
       });
    });
 
@@ -1028,11 +1034,11 @@ connection.onDefinition(
       // Get definition position inside the owner
       if (outline.entity.exactType == "aLocalVarDesc") {
 
-         let definitionReq = rp({
-            method: 'GET',
-            uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
-            json: true
-         });
+         // let definitionReq = rp({
+         //    method: 'GET',
+         //    uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
+         //    json: true
+         // });
 
 
          for (var index = 0; index < classInfo[moduleName].metaInfo.locals.length; index++) {
@@ -1096,7 +1102,11 @@ connection.onDefinition(
                         }
                      }
                   };
+               }).catch((rejectReason) => {
+                  connection.window.showErrorMessage("Error: " + rejectReason);
                });
+            }).catch((rejectReason) => {
+               connection.window.showErrorMessage("Error: " + rejectReason);
             });
 
       } else {
@@ -1134,6 +1144,8 @@ connection.onDefinition(
                   }
                }
             };
+         }).catch((rejectReason) => {
+            connection.window.showErrorMessage("Error: " + rejectReason);
          });
       }
    });
@@ -1384,6 +1396,8 @@ connection.onSignatureHelp(
             }
 
             return result;
+         }).catch((rejectReason) => {
+            connection.window.showErrorMessage("Error: " + rejectReason);
          });
    });
 
@@ -1700,6 +1714,8 @@ connection.onWorkspaceSymbol(
             };
 
             return symbols;
+         }).catch((rejectReason) => {
+            connection.window.showErrorMessage("Error: " + rejectReason);
          });
    }
 );
@@ -1856,6 +1872,8 @@ function generatePackagesIndex () : Thenable<Boolean> {
 
    return buildPackageIndex.then((response) => {
       return true;
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
    });
 }
 
@@ -1879,6 +1897,8 @@ function buildDependenciesRepo(): Thenable<Boolean> {
 
    return buildRepoReq.then((response) => {
       return true;
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
    });
 
 }
@@ -1903,6 +1923,8 @@ function syncWorkspaceRepo(): Thenable<Boolean> {
 
    return buildWorkspaceReq.then((response) => {
       return true;
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
    });
 
 }
@@ -1994,10 +2016,9 @@ connection.onRenameRequest((params: RenameParams): WorkspaceEdit => {
       connection.window.showInformationMessage("Rename successfully completed.");
 
       return result;
-   }).catch((response) => {
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
       let result: WorkspaceEdit = { changes: {} };
-      // connection.sendNotification({method:"showNotification"}, {type:"error", message:"Rename failed"});
-      connection.window.showErrorMessage("Rename failed : " + response);
       return result;
    });
 });

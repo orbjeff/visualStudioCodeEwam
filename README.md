@@ -195,6 +195,36 @@ procedure HelloWorld(Message1 : CString, Message2 : CString)
 endProc
 ```
 
+```
+; aVSCodeDemo (aApplicativeRoot) (Def Version:178) (Implem Version:189)
+
+class aVSCodeDemo (aApplicativeRoot)
+
+login : CString
+
+
+procedure HelloWorld(message1 : CString, message2 : CString)
+   uses aWFActor
+   
+   var extract : CString
+   var actor : aWFActor
+   
+   new(actor)
+   self.login = ''
+   self.login = actor.GetLogin
+   self.Accept
+   extract = self.StringExtract(FullExtract, 0, 256)
+   Alert(message1 + ' ' + message2 + ' !')
+   Alert('coucou xD')
+   Alert('Super coucou :)')
+   dispose(actor)
+endProc 
+
+procedure HelloWorld2(param1 : CString, param2 : CString)
+   Alert(param1 + ' ' + param2 + ' !')
+endProc 
+```
+
 # Changelog
 
 ## Alpha 0.3.2 - *Deliver on December 09, 2016*
@@ -207,6 +237,7 @@ endProc
    - [x] Improved ignored patterns in .gitignore
    - [x] Improved eWam command names
    - [x] Fixed Open Reimplem
+   - [ ] Fix buggy reimplem parsing (creates a new module when parsin a reimplem !! Oo)
 
 ## Alpha 0.3.1 - *Deliver on November 30, 2016*
    - [x] Added file watching and metainfo refresh on focus

@@ -203,21 +203,20 @@
          {
             "command": "ewam.openIDE",
             "title": "eWam: Open IDE"
-         },
-
-
-
+         }
+      ],
+      "commented_commands": [
          {
-            "dummy_command": "ewam.diffTest",
-            "dummy_title": "eWam: Diff Test"
-         },
-         {
-            "dummy_command": "ewam.setReadOnly",
-            "dummy_title": "eWam: Set Read Only"
+            "command": "ewam.diffTest",
+            "title": "eWam: Diff Test"
          },
          {
-            "dummy_command": "ewam.dummyCommand",
-            "dummy_title": "eWam: Dummy Command"
+            "command": "ewam.setReadOnly",
+            "title": "eWam: Set Read Only"
+         },
+         {
+            "command": "ewam.dummyCommand",
+            "title": "eWam: Dummy Command"
          }
       ],
       "languages": [
