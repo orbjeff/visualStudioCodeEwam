@@ -1,13 +1,14 @@
-## Alpha 0.3.2 - *Deliver on December 09, 2016*
+## Alpha 0.3.2 - *Deliver on December 13, 2016*
    - [x] Refresh source from TGV
    - [x] Git free compliance
    - [x] Added Open IDE feature
-
+   
    Bug fixes and ergonomy
    - [x] Fixed non-normalize path when opening a file
    - [x] Improved ignored patterns in .gitignore
    - [x] Improved eWam command names
    - [x] Fixed Open Reimplem
+   - [x] Fix buggy reimplem parsing (creates a new module when parsin a reimplem !! Oo)
    
 ## Alpha 0.3.1 - *Deliver on November 30, 2016*
    - [x] Added file watching and metainfo refresh on focus

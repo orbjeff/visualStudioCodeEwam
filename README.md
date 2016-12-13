@@ -40,7 +40,7 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 
 - [ ] Implement contextual commands 
 - [ ] Forbid Class/module checkout/modification for dependencies <= maybe, useless since dependencies are checked in (and should be kept by integrator), thus in readonly  
-- [ ] Class/module documentation with more info : variables/methodes/types/constantes/scenarios
+- [ ] Class/module documentation with more info : variables/methodes/types/constantes/scenarios / REIMPLEMS
 - [ ] Class tree as HTML preview
 - [ ] Module list as HTML preview
 - [ ] When opening a class/module, fold anotations
@@ -227,7 +227,7 @@ endProc
 
 # Changelog
 
-## Alpha 0.3.2 - *Deliver on December 09, 2016*
+## Alpha 0.3.2 - *Deliver on December 13, 2016*
    - [x] Refresh source from TGV
    - [x] Git free compliance
    - [x] Added Open IDE feature
@@ -237,7 +237,7 @@ endProc
    - [x] Improved ignored patterns in .gitignore
    - [x] Improved eWam command names
    - [x] Fixed Open Reimplem
-   - [ ] Fix buggy reimplem parsing (creates a new module when parsin a reimplem !! Oo)
+   - [x] Fix buggy reimplem parsing (creates a new module when parsin a reimplem !! Oo)
 
 ## Alpha 0.3.1 - *Deliver on November 30, 2016*
    - [x] Added file watching and metainfo refresh on focus

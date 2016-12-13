@@ -949,13 +949,13 @@ function newClass(parentClass: string) {
          .then(name => {
             if (name != undefined) {
                axios.default.put(config.get('url') + '/api/rest/classOrModule/', { content: '', ancestor: parentClass, name: name })
-                  .then(function (response) {
-                     // console.log(response);
-                     openClass(name);
-                  })
-                  .catch((rejectReason: any) => {
-                     vscode.window.showErrorMessage("Class couldn't be created, check the class name is correct and doesn't already exist. (Error: " + rejectReason + ")" );
-                  });
+               .then(function (response) {
+                  // console.log(response);
+                  openClass(name);
+               })
+               .catch((rejectReason: any) => {
+                  vscode.window.showErrorMessage("Class couldn't be created, check the class name is correct and doesn't already exist. (Error: " + rejectReason + ")" );
+               });
             }
          });
    }
@@ -1180,6 +1180,18 @@ function searchClass(callBackFunc: searchClassCallBack, promptText: string = 'Cl
    config = vscode.workspace.getConfiguration('ewam');
    vscode.window.showInputBox({ prompt: promptText, value: text })
       .then(criteria => {
+         if (criteria == undefined) {
+            //cancelled
+            return;
+         }
+
+         if (criteria == '') {
+            //cancelled
+            vscode.window.showWarningMessage("You must provide an ancestor !");
+            return;
+         }
+
+
          axios.default.get(config.get('url') + '/api/rest/searchEntities',
             {
                params: {
