@@ -79,6 +79,20 @@ function openIDE() : Thenable<Boolean> {
    });
 }
 
+function stopService() : Thenable<Boolean> {
+   return axios.default.post(config.get('url') + '/api/rest/system/stopservice')
+   .then( (response) => {
+      if (response.data == true) {
+         return true;
+      } else {
+         return false;
+      }
+   }).catch((rejectReason) => {
+      vscode.window.showErrorMessage("Error: " + rejectReason);
+      return false;
+   });
+}
+
 function refreshFromTGV (doc? : vscode.TextDocument) {
 
    if (doc == undefined || !doc) {
@@ -1562,6 +1576,11 @@ export function activate(context: vscode.ExtensionContext) {
 
    disposable = vscode.commands.registerCommand('ewam.openIDE', function () {
       openIDE();
+   });
+   context.subscriptions.push(disposable);
+   
+   disposable = vscode.commands.registerCommand('ewam.stopService', function () {
+      stopService();
    });
    context.subscriptions.push(disposable);
    

@@ -203,6 +203,10 @@
          {
             "command": "ewam.openIDE",
             "title": "eWam: Open IDE"
+         },
+         {
+            "command": "ewam.stopService",
+            "title": "eWam: Stop Service"
          }
       ],
       "commented_commands": [

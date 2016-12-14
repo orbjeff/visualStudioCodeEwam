@@ -231,6 +231,7 @@ endProc
    - [x] Refresh source from TGV
    - [x] Git free compliance
    - [x] Added Open IDE feature
+   - [x] Added Stop Service feature
    
    Bug fixes and ergonomy
    - [x] Fixed non-normalize path when opening a file
