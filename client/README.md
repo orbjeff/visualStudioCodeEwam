@@ -8,7 +8,7 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 ## Documentation
 
 * [Documentation](https://mphasiswyde.atlassian.net/wiki/display/RTS/Visual+Studio+Code+extension)
-* [Tutorial and feature documentation](https://mphasiswyde.atlassian.net/wiki/display/RTS/Tutorial)
+* [Tutorial and feature documentation](https://mphasiswyde.atlassian.net/wiki/display/RTS/Tutorials)
 * [Release notes and roadmap](https://mphasiswyde.atlassian.net/wiki/display/RTS/Release+Notes)
 
 ## Source code
