@@ -231,8 +231,6 @@ function SyncAll() {
       SyncGit().then(() => {
          buildDependenciesRepo().then((result: any) => { });
       });
-
-      buildDependenciesRepo().then((result: any) => { });
    });
 }
 

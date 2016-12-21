@@ -191,7 +191,7 @@ interface tParseParam {
    "uri": string
 };
 
-let classInfo: { [modulename: string]: tClassInfo; };
+let classInfo: { [modulename: string]: tClassInfo; } = {};
 let ewamPath: string;
 let workPath: string;
 
@@ -491,7 +491,7 @@ function updateLastImplemVersion(className: string) {
 
 function updateMetaInfoForClass(classname: string, source: string): Thenable<tMetaInfo> {
 
-   if (isUpdatingMetaInfo == true) {
+   if (isUpdatingMetaInfo == true || classname == undefined || classname == '') {
       let dummyPromise = new Promise(() => { return {} });
       return dummyPromise;
    }

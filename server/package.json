@@ -22,7 +22,7 @@
    },
    "_comments_01": "vscode devDependencies : not supposed to appear here according to the sample, but needed to get the typings I think",
    "devDependencies": {
-      "typescript": "~2.0.10",
+      "typescript": "~2.1.4",
       "@types/node": "^6.0.40",
       "vscode": "^1.0.3"
    },

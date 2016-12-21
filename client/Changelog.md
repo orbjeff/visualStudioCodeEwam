@@ -1,4 +1,4 @@
-## Alpha 0.3.2 - *Deliver on December 13, 2016*
+## Alpha 0.3.2 - *Deliver on December 21, 2016*
    - [x] Refresh source from TGV
    - [x] Git free compliance
    - [x] Added Open IDE feature
@@ -9,7 +9,10 @@
    - [x] Improved ignored patterns in .gitignore
    - [x] Improved eWam command names
    - [x] Fixed Open Reimplem
-   - [x] Fix buggy reimplem parsing (creates a new module when parsin a reimplem !! Oo)
+   - [x] Fixed buggy reimplem parsing (creates a new module when parsing a reimplem !! Oo)
+   - [x] Fixed duplicated call to buildDependenciesRepo
+   - [x] Fixed suggestion issue
+   - [x] Fixed error when getting metainfo for an undefined class/module name
    
 ## Alpha 0.3.1 - *Deliver on November 30, 2016*
    - [x] Added file watching and metainfo refresh on focus

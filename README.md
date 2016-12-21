@@ -39,6 +39,7 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 ## Upcoming tasks
 
 - [ ] Implement contextual commands 
+- [ ] Add watch on bundleIndex.json ? Yes : refresh cache because files may appear and or change bundle location.
 - [ ] Forbid Class/module checkout/modification for dependencies <= maybe, useless since dependencies are checked in (and should be kept by integrator), thus in readonly  
 - [ ] Class/module documentation with more info : variables/methodes/types/constantes/scenarios / REIMPLEMS
 - [ ] Class tree as HTML preview
@@ -63,14 +64,12 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
    - Bundle redesign
 
 - Bug fixes and ergonomy
-    - [ ] Unable to open Reimplems : reimplems disabled (actually there's more to it, c.f. commenting InitReimplemExecution() isn't enought... ) 
     - [ ] API performance (i.e. GetMetaInfo : 10s to get metainfo of aWFActor when AdvancedComponents not compiled, due to serializer)
       - use Florian's serializer for simple records
       - maybe cache metainfo in local file
    - [ ] Improve "Find references" feature to provide position in file (use metainfo or maybe ewam-open:// URL ?)
       - [ ] Explore ewam-open:// scheme handling with contentProviders, to lazy-load gold modules from URLs (might be useful in documentation or when accessing an entity we don't know the position yet)
    ... nothing left to do... we're nearly there !
-   - [ ] Add watch on bundleIndex.json ?
 
 ## 2.0 supported as of eWAM 6.2
 
@@ -227,7 +226,7 @@ endProc
 
 # Changelog
 
-## Alpha 0.3.2 - *Deliver on December 13, 2016*
+## Alpha 0.3.2 - *Deliver on December 21, 2016*
    - [x] Refresh source from TGV
    - [x] Git free compliance
    - [x] Added Open IDE feature
@@ -238,7 +237,10 @@ endProc
    - [x] Improved ignored patterns in .gitignore
    - [x] Improved eWam command names
    - [x] Fixed Open Reimplem
-   - [x] Fix buggy reimplem parsing (creates a new module when parsin a reimplem !! Oo)
+   - [x] Fixed buggy reimplem parsing (creates a new module when parsing a reimplem !! Oo)
+   - [x] Fixed duplicated call to buildDependenciesRepo
+   - [x] Fixed suggestion issue
+   - [x] Fixed error when getting metainfo for an undefined class/module name
 
 ## Alpha 0.3.1 - *Deliver on November 30, 2016*
    - [x] Added file watching and metainfo refresh on focus
