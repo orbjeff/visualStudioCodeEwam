@@ -2,9 +2,10 @@
    "name": "ewamvscadaptor",
    "displayName": "eWam Plugin",
    "description": "eWam Plugin",
-   "version": "0.3.1",
+   "version": "0.3.2",
+   "author": "Wyde",
    "publisher": "mphasiswyde",
-   "license" : "Mphasis Wyde",
+   "license" : "MIT",
    "categories": [
       "Languages", "Snippets", "Linters", "Themes", "Formatters"
    ],
@@ -109,15 +110,15 @@
          },
          {
             "command": "ewam.showModuleDocumentation",
-            "key": "alt+t",
-            "mac": "alt+t",
+            "key": "alt+l",
+            "mac": "alt+l",
             "when": "editorTextFocus"
          }
       ],
       "commands": [
          {
             "command": "ewam.openEntity",
-            "title": "eWam: Open Entity"
+            "title": "eWam: Open Class or Module"
          },
          {
             "command": "ewam.checkIn",
@@ -137,7 +138,7 @@
          },
          {
             "command": "ewam.scenario",
-            "title": "eWam: Scenario"
+            "title": "eWam: Open Scenario"
          },
          {
             "command": "ewam.deliver",
@@ -145,11 +146,11 @@
          },
          {
             "command": "ewam.newClass",
-            "title": "eWam: New Class"
+            "title": "eWam: Create New Class"
          },
          {
             "command": "ewam.newModule",
-            "title": "eWam: New Module"
+            "title": "eWam: Create New Module"
          },
          {
             "command": "ewam.metaInfo",
@@ -172,6 +173,10 @@
             "title": "eWam: Sync Dependencies Repository"
          },
          {
+            "command": "ewam.syncWorkspaceRepo",
+            "title": "eWam: Sync Project Repository"
+         },
+         {
             "command": "ewam.try",
             "title": "eWam: Try it"
          },
@@ -188,12 +193,26 @@
             "title": "eWam: Sync Git"
          },
          {
-            "command": "ewam.diffTest",
-            "title": "eWam: Diff Test"
-         },
-         {
             "command": "ewam.createScenario",
             "title": "eWam: Create New Scenario"
+         },
+         {
+            "command": "ewam.refreshFromTGV",
+            "title": "eWam: Refresh From TGV"
+         },
+         {
+            "command": "ewam.openIDE",
+            "title": "eWam: Open IDE"
+         },
+         {
+            "command": "ewam.stopService",
+            "title": "eWam: Stop Service"
+         }
+      ],
+      "commented_commands": [
+         {
+            "command": "ewam.diffTest",
+            "title": "eWam: Diff Test"
          },
          {
             "command": "ewam.setReadOnly",
@@ -272,7 +291,7 @@
    },
    "devDependencies": {
       "vscode": "^1.0.3",
-      "typescript": "~2.0.10",
+      "typescript": "~2.1.4",
       "@types/node": "^6.0.40"
    },
    "dependencies": {

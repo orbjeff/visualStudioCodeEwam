@@ -65,6 +65,49 @@ let fileWatcher: vscode.FileSystemWatcher;
 // 	documents.all().forEach(validateTextDocument);
 // });
 
+function openIDE() : Thenable<Boolean> {
+   return axios.default.get(config.get('url') + '/system/OpenIDE')
+   .then( (response) => {
+      if (response.data == true) {
+         return true;
+      } else {
+         return false;
+      }
+   }).catch((rejectReason) => {
+      vscode.window.showErrorMessage("Error: " + rejectReason);
+      return false;
+   });
+}
+
+function stopService() : Thenable<Boolean> {
+   return axios.default.post(config.get('url') + '/api/rest/system/stopservice')
+   .then( (response) => {
+      if (response.data == true) {
+         return true;
+      } else {
+         return false;
+      }
+   }).catch((rejectReason) => {
+      vscode.window.showErrorMessage("Error: " + rejectReason);
+      return false;
+   });
+}
+
+function refreshFromTGV (doc? : vscode.TextDocument) {
+
+   if (doc == undefined || !doc) {
+      if (vscode.window.activeTextEditor != undefined) {
+         doc = vscode.window.activeTextEditor.document;
+      } else {
+         return;
+      }
+   }
+
+   let moduleName: string = getOpenClassName(doc);
+
+   openClass(moduleName);
+   RefreshMetaInfo(moduleName);
+}
 
 function isGoldDocument(fileUri: vscode.Uri) : Boolean {
    let filePath : string = fileUri.toString();
@@ -109,7 +152,7 @@ function LoadMetaInfo(moduleName: string) {
 }
 
 function RefreshMetaInfo(moduleName: string) {
-   console.log("client RefreshMetaInfo " + moduleName);
+   // console.log("client RefreshMetaInfo " + moduleName);
    return languageClient.sendRequest(
       { method: "RefreshMetaInfo" },
       { moduleName: moduleName }
@@ -188,8 +231,6 @@ function SyncAll() {
       SyncGit().then(() => {
          buildDependenciesRepo().then((result: any) => { });
       });
-
-      buildDependenciesRepo().then((result: any) => { });
    });
 }
 
@@ -240,8 +281,8 @@ function runContext() {
             .then((response: any) => {
 
             })
-            .catch((response: any) => {
-               console.log(response);
+            .catch((rejectReason: any) => {
+               vscode.window.showErrorMessage("Error: " + rejectReason);
             });
 
       } else if (choice == "try method") {
@@ -258,8 +299,8 @@ function runContext() {
                      .then((response: any) => {
 
                      })
-                     .catch((response: any) => {
-                        console.log(response);
+                     .catch((rejectReason: any) => {
+                        vscode.window.showErrorMessage("Error: " + rejectReason);
                      });
 
                }
@@ -274,8 +315,8 @@ function runContext() {
                      axios.default.post(config.get('url') + '/api/rest/tryScenario/' + className + '/' + selection["label"], {})
                   });
             })
-            .catch((response: any) => {
-               console.log(response);
+            .catch((rejectReason: any) => {
+               vscode.window.showErrorMessage("Error: " + rejectReason);
             });
 
       }
@@ -309,6 +350,8 @@ function SyncTGV(): any {
    return axios.default.post(config.get('url') + '/api/rest/repository/synchronize', {})
       .then((response: any) => {
          vscode.window.showInformationMessage("TGV sync done.");
+      }).catch((rejectReason: any) => {
+         vscode.window.showErrorMessage("Error: " + rejectReason);
       });
 }
 
@@ -386,24 +429,26 @@ function refreshUI() {
 
    if (name != '') {
       axios.default.get(config.get('url') + '/api/rest/classOrModule/' + name + '/entityStatus')
-         .then(function (response) {
-            if (response.data["checkedOut"]) {
-               checkInBarItem.show();
-               checkOutBarItem.hide();
-               scenarioBarItem.show();
-               reimplemBarItem.show();
-               parseBarItem.show()
-               //fs.fstat()
-               //vscode.window.activeTextEditor.document.uri.fsPath
-            } else {
-               checkInBarItem.hide();
-               checkOutBarItem.show();
-               scenarioBarItem.hide();
-               reimplemBarItem.hide();
-               parseBarItem.hide();
-            }
-            setDecoForStopPoints(response.data["stopPoints"]);
-         });
+      .then(function (response) {
+         if (response.data["checkedOut"]) {
+            checkInBarItem.show();
+            checkOutBarItem.hide();
+            scenarioBarItem.show();
+            reimplemBarItem.show();
+            parseBarItem.show()
+            //fs.fstat()
+            //vscode.window.activeTextEditor.document.uri.fsPath
+         } else {
+            checkInBarItem.hide();
+            checkOutBarItem.show();
+            scenarioBarItem.hide();
+            reimplemBarItem.hide();
+            parseBarItem.hide();
+         }
+         setDecoForStopPoints(response.data["stopPoints"]);
+      }).catch((rejectReason: any) => {
+         vscode.window.showErrorMessage(rejectReason);
+      });
    }
 }
 
@@ -460,8 +505,8 @@ function openClass(name: string) {
             });
          });
       })
-      .catch((response) => {
-         console.log(response);
+      .catch((rejectReason: any) => {
+         vscode.window.showErrorMessage("Error: " + rejectReason);
       });
 }
 
@@ -531,6 +576,9 @@ function isCheckOut(className: string): Thenable<Boolean> {
          } else {
             return false;
          }
+      }).catch((rejectReason: any) => {
+         vscode.window.showErrorMessage("Error: " + rejectReason);
+         return false;
       });
 }
 
@@ -600,16 +648,16 @@ function checkBeforeSave(doc?: vscode.TextDocument): Thenable<any> {
                            return axios.default.get(config.get('url') + '/api/rest/classOrModule/' + className)
                               .then((sourceResponse) => {
                                  return compareFiles(modulePath, className, sourceResponse.data["content"]);
-                              }).catch((response) => {
-                                 console.log("Couldn't get source code from " + className)
+                              }).catch((rejectReason: any) => {
+                                 vscode.window.showErrorMessage("Error: " + rejectReason);
                               });
                         } else {
                            if (fs.existsSync(modulePath + "\\" + className + ".tgv" + EXTENSION)) {
                               fs.unlink(modulePath + "\\" + className + ".tgv" + EXTENSION);
                            }
                         }
-                     }).catch((response) => {
-                        console.log("Couldn't retrieve status of " + className)
+                     }).catch((rejectReason: any) => {
+                        vscode.window.showErrorMessage("Error: " + rejectReason);
                      });
                });
          });
@@ -625,8 +673,8 @@ function GenericPostOperation(name: string, op: string) {
       .then(function (response) {
          refreshUI();
       })
-      .catch(function (response) {
-         console.log(response);
+      .catch((rejectReason: any) => {
+         vscode.window.showErrorMessage("Error: " + rejectReason);
       });
 }
 
@@ -642,8 +690,8 @@ function checkOutClass(name: string) {
             setReadWrite(modulePath + "\\" + name + ".god");
          });
       })
-      .catch(function (response) {
-         console.log(response);
+      .catch((rejectReason: any) => {
+         vscode.window.showErrorMessage("Error: " + rejectReason);
       });
 
 }
@@ -664,8 +712,8 @@ function checkInClass(name: string) {
          });
          refreshUI();
       })
-      .catch(function (response) {
-         console.log(response);
+      .catch((rejectReason: any) => {
+         vscode.window.showErrorMessage("Error: " + rejectReason);
       });
 }
 
@@ -833,8 +881,8 @@ function classTree() {
       .then(function (response) {
          // console.log(response);
       })
-      .catch(function (response) {
-         console.log(response);
+      .catch((rejectReason: any) => {
+         vscode.window.showErrorMessage("Error: " + rejectReason);
       });
 
 }
@@ -902,8 +950,8 @@ function getScenario(classname: string, callBack: getScenarioCallBack) {
                callBack(classname, selection["label"])
             });
       })
-      .catch(function (response) {
-         console.log(response);
+      .catch((rejectReason: any) => {
+         vscode.window.showErrorMessage("Error: " + rejectReason);
       });
 }
 
@@ -913,13 +961,13 @@ function newClass(parentClass: string) {
          .then(name => {
             if (name != undefined) {
                axios.default.put(config.get('url') + '/api/rest/classOrModule/', { content: '', ancestor: parentClass, name: name })
-                  .then(function (response) {
-                     // console.log(response);
-                     openClass(name);
-                  })
-                  .catch((error) => {
-                     vscode.window.showWarningMessage("Class couldn't be created, check the class name is correct and doesn't already exist.")
-                  });
+               .then(function (response) {
+                  // console.log(response);
+                  openClass(name);
+               })
+               .catch((rejectReason: any) => {
+                  vscode.window.showErrorMessage("Class couldn't be created, check the class name is correct and doesn't already exist. (Error: " + rejectReason + ")" );
+               });
             }
          });
    }
@@ -934,6 +982,8 @@ function newModule() {
                .then(function (response) {
                   // console.log(response);
                   openClass(name);
+               }).catch((rejectReason: any) => {
+                  vscode.window.showErrorMessage("Error: " + rejectReason);
                });
          }
       });
@@ -945,8 +995,8 @@ function editScenario(classname: string, scenarioName: string) {
       .then(function (response) {
 
       })
-      .catch(function (response) {
-         console.log(response);
+      .catch((rejectReason: any) => {
+         vscode.window.showErrorMessage("Error: " + rejectReason);
       });
 }
 
@@ -1017,8 +1067,8 @@ function metaInfo() {
                   });
 
                })
-               .catch(function (response) {
-                  console.log(response);
+               .catch((rejectReason: any) => {
+                  vscode.window.showErrorMessage("Error: " + rejectReason);
                });
          }
       });
@@ -1034,13 +1084,15 @@ function interact(uri: string) {
             config = vscode.workspace.getConfiguration('ewam');
             axios.default.get(config.get('url') + uri + '/' + choice)
                .then(function (response) {
-               }).catch(function (response) {
+               }).catch((rejectReason: any) => {
+                  vscode.window.showErrorMessage("Error: " + rejectReason);
                });
          } else if (choice != undefined) {
             config = vscode.workspace.getConfiguration('ewam');
             axios.default.post(config.get('url') + uri + '/' + choice)
                .then(function (response) {
-               }).catch(function (response) {
+               }).catch((rejectReason: any) => {
+                  vscode.window.showErrorMessage("Error: " + rejectReason);
                });
          }
       });
@@ -1071,6 +1123,8 @@ function createNewScenario(className: string) {
             });
 
             _rp.then(() => {
+            }).catch((rejectReason) => {
+               vscode.window.showErrorMessage("Error: " + rejectReason);
             });
          });
 
@@ -1113,6 +1167,8 @@ function createNewScenario(className: string) {
                doCreateScen(className, value.description);
             }
          });
+   }).catch((rejectReason) => {
+      vscode.window.showErrorMessage("Error: " + rejectReason);
    });
 }
 
@@ -1136,6 +1192,18 @@ function searchClass(callBackFunc: searchClassCallBack, promptText: string = 'Cl
    config = vscode.workspace.getConfiguration('ewam');
    vscode.window.showInputBox({ prompt: promptText, value: text })
       .then(criteria => {
+         if (criteria == undefined) {
+            //cancelled
+            return;
+         }
+
+         if (criteria == '') {
+            //cancelled
+            vscode.window.showWarningMessage("You must provide an ancestor !");
+            return;
+         }
+
+
          axios.default.get(config.get('url') + '/api/rest/searchEntities',
             {
                params: {
@@ -1144,7 +1212,10 @@ function searchClass(callBackFunc: searchClassCallBack, promptText: string = 'Cl
             })
             .then(function (response) {
                // console.log(response);
-               vscode.window.showQuickPick(getDataAsTable(response))
+               if (getDataAsTable(response).length == 0) {
+                  vscode.window.showWarningMessage(criteria + " not found.");
+               } else {
+                  vscode.window.showQuickPick(getDataAsTable(response))
                   .then((selection) => {
                      if (selection != undefined) {
                         if (selection.exactType == "aClassDef" || selection.exactType == "aReimplemModuleDef" ||
@@ -1156,9 +1227,10 @@ function searchClass(callBackFunc: searchClassCallBack, promptText: string = 'Cl
 
                      }
                   });
+               }
             })
-            .catch(function (response) {
-               console.log(response);
+            .catch((rejectReason: any) => {
+               vscode.window.showErrorMessage("Error: " + rejectReason);
             });
       }
       );
@@ -1175,20 +1247,29 @@ function run() {
 
       axios.default.post(
          config.get('url') + '/api/rest/tryClass/' + launchClass)
-         .then((response) => { });
+         .then((response) => { })
+         .catch((rejectReason: any) => {
+            vscode.window.showErrorMessage("Error: " + rejectReason);
+         });
 
    } else if (launchMode == 'method') {
 
       axios.default.post(
          config.get('url') + '/api/rest/tryMethod/' + launchClass + '/' + launchItem,
          config.get('applicationLauncherParams'))
-         .then((response) => { });
+         .then((response) => { })
+         .catch((rejectReason: any) => {
+            vscode.window.showErrorMessage("Error: " + rejectReason);
+         });
 
    } else if (launchMode == 'scenario') {
 
       axios.default.post(
          config.get('url') + '/api/rest/tryScenario/' + launchClass + '/' + launchItem)
-         .then((response) => { });
+         .then((response) => { })
+         .catch((rejectReason: any) => {
+            vscode.window.showErrorMessage("Error: " + rejectReason);
+         });
 
    }
 
@@ -1471,6 +1552,11 @@ export function activate(context: vscode.ExtensionContext) {
    });
    context.subscriptions.push(disposable);
 
+   disposable = vscode.commands.registerCommand('ewam.refreshFromTGV', function () {
+      refreshFromTGV();
+   });
+   context.subscriptions.push(disposable);
+
    //  disposable = vscode.commands.registerCommand('ewam.diffTest', function() {
    //      diffTest();
    //  });
@@ -1485,6 +1571,17 @@ export function activate(context: vscode.ExtensionContext) {
       setReadOnly(vscode.window.activeTextEditor.document.fileName);
    });
    context.subscriptions.push(disposable);
+
+   disposable = vscode.commands.registerCommand('ewam.openIDE', function () {
+      openIDE();
+   });
+   context.subscriptions.push(disposable);
+   
+   disposable = vscode.commands.registerCommand('ewam.stopService', function () {
+      stopService();
+   });
+   context.subscriptions.push(disposable);
+   
 
    parseBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 6);
    parseBarItem.text = '$(beaker) Parse'

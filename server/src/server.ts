@@ -12,11 +12,12 @@ import {
    CompletionItem, CompletionItemKind, CompletionList, Hover, CodeActionParams, Command,
    SymbolInformation, ReferenceParams, Position, SignatureHelp, ParameterInformation,
    SignatureInformation, Range, RenameParams, WorkspaceSymbolParams, DocumentFormattingParams,
-   TextEdit, Location, Definition, SymbolKind, NotificationType, WorkspaceEdit
+   TextEdit, Location, Definition, SymbolKind, NotificationType, WorkspaceEdit, DidChangeConfigurationParams
 } from 'vscode-languageserver';
 
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as path from 'path';
 
 let rp = require('request-promise');
 
@@ -54,23 +55,23 @@ let isUpdatingMetaInfo: Boolean;
 // The settings interface describe the server relevant settings part
 interface Settings {
    ewam: EwamSettings;
-}
+};
 
 // These are the example settings we defined in the client's package.json
 // file
 interface EwamSettings {
    url: string;
-}
+};
 
 interface tPositionRange {
    line: number,
    column: number
-}
+};
 
 interface tCompletionList {
    isComplete: boolean,
    items: tCompletionItem[]
-}
+};
 
 interface tCompletionItem {
    label: string,
@@ -78,7 +79,7 @@ interface tCompletionItem {
    detail: string,
    insertText: string,
    entity: tEntity
-}
+};
 
 interface tEntity {
    label: string,
@@ -88,12 +89,12 @@ interface tEntity {
    baseType: string,
    location: string,
    description: string
-}
+};
 
 interface tOutlineRange {
    startpos: tPositionRange,
    endpos: tPositionRange
-}
+};
 
 interface tOutline {
    range: tOutlineRange,
@@ -102,17 +103,17 @@ interface tOutline {
    documentation: string,
    name: string,
    entity: tEntity
-}
+};
 
 interface tPosition {
    line: number,
    column: number
-}
+};
 
 interface tRange {
    startpos: tPosition,
    endpos: tPosition
-}
+};
 
 interface tVariable {
    name: string,
@@ -120,13 +121,13 @@ interface tVariable {
    documentation: string,
    range: tRange,
    entity: tEntity
-}
+};
 
 interface tParameter {
    name: string,
    documentation: string,
    paramType: string
-}
+};
 
 interface tMethod {
    name: string,
@@ -135,26 +136,26 @@ interface tMethod {
    documentation: string,
    range: tRange,
    entity: tEntity
-}
+};
 
 interface tType {
    name: string,
    documentation: string,
    range: tRange,
    entity: tEntity
-}
+};
 
 interface tConstant {
    name: string,
    documentation: string,
    range: tRange,
    entity: tEntity
-}
+};
 
 interface tClassInfo {
    lastKnownImplemVersion: number;
    metaInfo: tMetaInfo;
-}
+};
 
 interface tMetaInfo {
    moduleName: string;
@@ -168,7 +169,7 @@ interface tMetaInfo {
    childs: tEntity[];
    sisters: tEntity[];
    outlines: tOutline[];
-}
+};
 
 interface tWhereUsed {
    name: string,
@@ -176,11 +177,24 @@ interface tWhereUsed {
    theType: string,
    location: string,
    description: string
-}
+};
 
-let classInfo: { [modulename: string]: tClassInfo; };
+interface tMethodAtLineParam {
+   "classname": string,
+   "line": number 
+};
+
+interface tParseParam {
+   "classname": string,
+   "source": string,
+   "notifyNewSource": boolean,
+   "uri": string
+};
+
+let classInfo: { [modulename: string]: tClassInfo; } = {};
 let ewamPath: string;
 let workPath: string;
+
 
 connection.onInitialize(
    (params): InitializeResult => {
@@ -196,10 +210,6 @@ connection.onInitialize(
       }
 
       isUpdatingMetaInfo = false;
-
-      refreshCache();
-
-      loadCache();
 
       return {
          capabilities: {
@@ -254,10 +264,15 @@ documents.onDidChangeContent((change) => {
 // The settings have changed. Is send on server activation
 // as well.
 connection.onDidChangeConfiguration((change) => {
+   console.log("Loading configuration");
+
    let settings = <Settings>change.settings;
    url = settings.ewam.url || 'http://127.0.0.1:8082/';
    // Revalidate any open text documents
    documents.all().forEach(validateTextDocument);
+   
+   loadCache();
+   refreshBundleCache();
 });
 
 function validateTextDocument(textDocument: TextDocument): void {
@@ -362,7 +377,8 @@ connection.onCompletion(
          // console.log("Completion result: " + JSON.stringify(result));
 
          return result;
-      }).catch((response: tCompletionList) => {
+      }).catch((rejectReason) => {
+         connection.window.showErrorMessage("Error: " + rejectReason);
          return {
             "isIncomplete": true,
             "items": []
@@ -467,13 +483,15 @@ function updateLastImplemVersion(className: string) {
       // console.log("Got new implem version for \"" + className + "\": " + JSON.stringify(statusResponse["implemVersion"]));
       classInfo[className].lastKnownImplemVersion = statusResponse["implemVersion"];
       //  console.log("New implem version for \"" + className + "\": " + classInfo[className].lastKnownImplemVersion + " | " + JSON.stringify(classInfo[className].metaInfo));
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
    });
 
 }
 
 function updateMetaInfoForClass(classname: string, source: string): Thenable<tMetaInfo> {
 
-   if (isUpdatingMetaInfo == true) {
+   if (isUpdatingMetaInfo == true || classname == undefined || classname == '') {
       let dummyPromise = new Promise(() => { return {} });
       return dummyPromise;
    }
@@ -492,31 +510,30 @@ function updateMetaInfoForClass(classname: string, source: string): Thenable<tMe
 
    isUpdatingMetaInfo = true;
 
-   return _rp
-      .then((response) => {
-         // if (classInfo == undefined) {
-         //    classInfo = [];
-         // }
-         if (!(classname in classInfo)) {
-            classInfo[classname] = {
-               "lastKnownImplemVersion": -1,
-               "metaInfo": response
-            };
-         } else {
-            classInfo[classname].metaInfo = response;
-         }
+   return _rp.then((response) => {
+      // if (classInfo == undefined) {
+      //    classInfo = [];
+      // }
+      if (!(classname in classInfo)) {
+         classInfo[classname] = {
+            "lastKnownImplemVersion": -1,
+            "metaInfo": response
+         };
+      } else {
+         classInfo[classname].metaInfo = response;
+      }
 
-         let htmlDoc = getHtmlDocFor(classname);
-         // connection.console.log('Successfully updated meta-information. \n' + JSON.stringify(response));
-         isUpdatingMetaInfo = false;
+      let htmlDoc = getHtmlDocFor(classname);
+      // connection.console.log('Successfully updated meta-information. \n' + JSON.stringify(response));
+      isUpdatingMetaInfo = false;
 
-         return classInfo[classname].metaInfo;
-      })
-      .catch((response) => {
-         // delete classInfo[classname].metaInfo;
-         // connection.console.log('Error while updating meta-information. \n' /*+ response*/ );
-         isUpdatingMetaInfo = false;
-      });
+      return classInfo[classname].metaInfo;
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
+      // delete classInfo[classname].metaInfo;
+      // connection.console.log('Error while updating meta-information. \n' /*+ rejectReason*/ );
+      isUpdatingMetaInfo = false;
+   });
 }
 
 function getOutlineAt(position: Position, modulename: string): tOutline {
@@ -622,7 +639,7 @@ connection.onRequest({ method: "loadCache" },
    });
 
 function loadCache() {
-   console.log("Loading cache from '" + workspaceRoot + "\\.tmp\\ewamcache.json'");
+   console.log("Loading metainfo cache from '" + workspaceRoot + "\\.tmp\\ewamcache.json'");
 
    if (fs.existsSync(workspaceRoot + "\\.tmp\\ewamcache.json")) {
       let cacheString: string = fs.readFileSync(workspaceRoot + "\\.tmp\\ewamcache.json", 'utf8');
@@ -642,7 +659,7 @@ connection.onRequest({ method: "saveCache" },
    });
 
 function saveCache() {
-   console.log("Saving cache to '" + workspaceRoot + "\\.tmp\\ewamcache.json' ...");
+   console.log("Saving metainfo cache to '" + workspaceRoot + "\\.tmp\\ewamcache.json' ...");
 
    if (classInfo == undefined) {
       return;
@@ -661,77 +678,68 @@ function saveCache() {
 }
 
 //Parse
-connection.onRequest({ method: "parse" },
-   (params: {
-      "classname": string,
-      "source": string,
-      "notifyNewSource": boolean,
-      "uri": string
-   }): Thenable<tParseResult> => {
-      var _rp = rp(
+connection.onRequest<tParseParam, tParseResult, {}> ({ method: "parse" }, (params: tParseParam) : Thenable<tParseResult> => {
+   var _rp = rp(
+      {
+         method: 'POST',
+         uri: url + '/api/rest/classOrModule/' + params.classname + '/parse',
+         body:
          {
-            method: 'POST',
-            uri: url + '/api/rest/classOrModule/' + params.classname + '/parse',
-            body:
-            {
-               "name": params.classname,
-               "ancestor": "",
-               "content": params.source
-            },
-            json: true
-         });
+            "name": params.classname,
+            "ancestor": "",
+            "content": params.source
+         },
+         json: true
+      });
 
-      //  console.log(JSON.stringify(params));
+   //  console.log(JSON.stringify(params));
 
-      return _rp.then((response) => {
-         let diagnostics: Diagnostic[] = [];
+   return _rp.then((response) => {
+      let diagnostics: Diagnostic[] = [];
 
-         let result: tParseResult = { docUri: '', newSource: '' };
+      let result: tParseResult = { docUri: '', newSource: '' };
 
-         if ("errors" in response && response.errors.length > 0) {
+      if ("errors" in response && response.errors.length > 0) {
 
-            let errors = response["errors"];
+         let errors = response["errors"];
 
-            for (var index = 0; index < errors.length; index++) {
-               diagnostics.push({
-                  "severity": DiagnosticSeverity.Error,
-                  "range": {
-                     "start": { "line": errors[index].line, "character": 0 /*errors[index].offSet-1*/ },
-                     "end": { "line": errors[index].line + 1, "character": 0 /*errors[index].offSet*/ }
-                  },
-                  "message": errors[index].msg
-               });
-            }
-
-            //Successfully parsed or not, send diagnostics anyway. 
-            connection.sendDiagnostics({ uri: params.uri, diagnostics });
-         } else {
-            //Successfully parsed or not, send diagnostics anyway.
-            connection.sendDiagnostics({ uri: params.uri, diagnostics });
-
-            if (params.notifyNewSource) {
-               updateMetaInfoForClass(params.classname, params.source);
-
-
-               result.docUri = params.uri;
-               result.newSource = response.content;
-               //  console.log("params: " + JSON.stringify(params));
-               //  console.log("result: " + JSON.stringify(result));
-            }
+         for (var index = 0; index < errors.length; index++) {
+            diagnostics.push({
+               "severity": DiagnosticSeverity.Error,
+               "range": {
+                  "start": { "line": errors[index].line, "character": 0 /*errors[index].offSet-1*/ },
+                  "end": { "line": errors[index].line + 1, "character": 0 /*errors[index].offSet*/ }
+               },
+               "message": errors[index].msg
+            });
          }
 
-         return result;
-      });
-   });
+         //Successfully parsed or not, send diagnostics anyway. 
+         connection.sendDiagnostics({ uri: params.uri, diagnostics });
+      } else {
+         //Successfully parsed or not, send diagnostics anyway.
+         connection.sendDiagnostics({ uri: params.uri, diagnostics });
 
-connection.onRequest({ method: "save" },
-   (params: {
-      "classname": string,
-      "source": string,
-      "notifyNewSource": boolean,
-      "uri": string
-   }): Thenable<tParseResult> => {
-      console.log("Saving to tgv...");
+         if (params.notifyNewSource) {
+            updateMetaInfoForClass(params.classname, params.source);
+
+
+            result.docUri = params.uri;
+            result.newSource = response.content;
+            //  console.log("params: " + JSON.stringify(params));
+            //  console.log("result: " + JSON.stringify(result));
+         }
+      }
+
+      return result;
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
+   });
+});
+
+connection.onRequest<tParseParam, tParseResult, {}> ({ method: "save" },
+   (params: tParseParam): Thenable<tParseResult> => {
+      connection.console.log("Saving " + params.classname + " to tgv...");
 
       var _rp = rp({
          method: 'POST',
@@ -781,6 +789,8 @@ connection.onRequest({ method: "save" },
 
          return result;
 
+      }).catch((rejectReason) => {
+         connection.window.showErrorMessage("Error: " + rejectReason);
       });
    });
 
@@ -842,8 +852,8 @@ function getMethodAtLine(className: string, line: number): string | Thenable<str
    }
 }
 
-connection.onRequest({ method: "getMethodAtLine" },
-   (params: { "classname": string, "line": number }): string | Thenable<string> => {
+connection.onRequest<tMethodAtLineParam, string, {}> ({ method: "getMethodAtLine" },
+   (params: tMethodAtLineParam): string | Thenable<string> => {
       // connection.console.log("getMethodAtLine " + params.classname + " " + params.line);
       return getMethodAtLine(params.classname, params.line);
    }
@@ -1024,11 +1034,11 @@ connection.onDefinition(
       // Get definition position inside the owner
       if (outline.entity.exactType == "aLocalVarDesc") {
 
-         let definitionReq = rp({
-            method: 'GET',
-            uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
-            json: true
-         });
+         // let definitionReq = rp({
+         //    method: 'GET',
+         //    uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
+         //    json: true
+         // });
 
 
          for (var index = 0; index < classInfo[moduleName].metaInfo.locals.length; index++) {
@@ -1069,30 +1079,34 @@ connection.onDefinition(
          return definitionReq
             .then((defRange: tRange) => {
                // Retrive the owner content
-               return contentReq
-                  .then((response) => {
+               return contentReq.then((response) => {
 
-                     let outFileName: string = getModulePath(outline.entity.ownerName) + "\\" + outline.entity.ownerName + extension;
+                  let outFileName: string = getModulePath(outline.entity.ownerName) + "\\" + outline.entity.ownerName + extension;
+                  outFileName = path.normalize(outFileName);
 
-                     if (fs.existsSync(outFileName.replace(/\\/g, '/'))) {
-                        fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
-                     }
-                     fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
+                  if (fs.existsSync(outFileName.replace(/\\/g, '/'))) {
+                     fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
+                  }
+                  fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
 
-                     return {
-                        uri: "file:///" + outFileName.replace(/\\/g, '/'),
-                        range: {
-                           "start": {
-                              "line": defRange.startpos.line,
-                              "character": defRange.startpos.column
-                           },
-                           "end": {
-                              "line": defRange.endpos.line,
-                              "character": defRange.endpos.column
-                           }
+                  return {
+                     uri: "file:///" + outFileName.replace(/\\/g, '/'),
+                     range: {
+                        "start": {
+                           "line": defRange.startpos.line,
+                           "character": defRange.startpos.column
+                        },
+                        "end": {
+                           "line": defRange.endpos.line,
+                           "character": defRange.endpos.column
                         }
-                     };
-                  });
+                     }
+                  };
+               }).catch((rejectReason) => {
+                  connection.window.showErrorMessage("Error: " + rejectReason);
+               });
+            }).catch((rejectReason) => {
+               connection.window.showErrorMessage("Error: " + rejectReason);
             });
 
       } else {
@@ -1107,30 +1121,32 @@ connection.onDefinition(
 
          let repoPath = repoParams.basePath.replace(/\\/g, '/');
          // Retrive the owner content
-         return contentReq
-            .then((response) => {
+         return contentReq.then((response) => {
 
-               let outFileName: string = getModulePath(outline.name) + "\\" + outline.name + extension;
+            let outFileName: string = getModulePath(outline.name) + "\\" + outline.name + extension;
+            outFileName = path.normalize(outFileName);
+            
+            if (fs.existsSync(outFileName.replace(/\\/g, '/'))) {
+               fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
+            }
+            fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
 
-               if (fs.existsSync(outFileName.replace(/\\/g, '/'))) {
-                  fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
-               }
-               fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
-
-               return {
-                  uri: "file:///" + outFileName.replace(/\\/g, '/'),
-                  range: {
-                     "start": {
-                        "line": 0,
-                        "character": 0
-                     },
-                     "end": {
-                        "line": 0,
-                        "character": 0
-                     }
+            return {
+               uri: "file:///" + outFileName.replace(/\\/g, '/'),
+               range: {
+                  "start": {
+                     "line": 0,
+                     "character": 0
+                  },
+                  "end": {
+                     "line": 0,
+                     "character": 0
                   }
-               };
-            });
+               }
+            };
+         }).catch((rejectReason) => {
+            connection.window.showErrorMessage("Error: " + rejectReason);
+         });
       }
    });
 
@@ -1380,6 +1396,8 @@ connection.onSignatureHelp(
             }
 
             return result;
+         }).catch((rejectReason) => {
+            connection.window.showErrorMessage("Error: " + rejectReason);
          });
    });
 
@@ -1696,6 +1714,8 @@ connection.onWorkspaceSymbol(
             };
 
             return symbols;
+         }).catch((rejectReason) => {
+            connection.window.showErrorMessage("Error: " + rejectReason);
          });
    }
 );
@@ -1709,12 +1729,12 @@ interface tModuleBundle {
    dependency: boolean;
 }
 
-let moduleBundleCache: tModuleBundle[];
+let moduleBundleCache: { [modulename: string]: tModuleBundle; };
 
 function updateModuleBundleCache() {
 
    if (moduleBundleCache == undefined) {
-      moduleBundleCache = [];
+      moduleBundleCache = {};
    }
 
    let nbEntities: number = 0;
@@ -1772,36 +1792,53 @@ function updateModuleBundleCache() {
    // connection.console.log("moduleBundleCache access test : " + moduleBundleCache["aWEXIdAllocatorChecker"].bundle);
 }
 
-function refreshCache(): Boolean {
-   if (bundleCacheRefreshing) {
-      return false;
-   }
+function refreshBundleCache() {
 
    bundleCacheRefreshing = true;
 
-   let data = fs.readFileSync(repoParams.basePath + "/bundleIndex.json", 'utf8');
-   if (data != "") {
-      bundleCache = JSON.parse(data);
-      // Feed the "metainfo" variable
-      updateModuleBundleCache();
-      bundleCacheRefreshing = false;
-      return true;
-   } else {
-      bundleCacheRefreshing = false;
-      return false;
+   if (moduleBundleCache == undefined) {
+      moduleBundleCache = {};
    }
+
+   function readBundleIndex () {
+
+      console.log("Loading bundle cache from " + repoParams.basePath + "/bundleIndex.json");
+
+      let data = fs.readFileSync(repoParams.basePath + "/bundleIndex.json", 'utf8');
+
+      if (data != "") {
+         bundleCache = JSON.parse(data);
+         // Feed the "metainfo" variable
+         updateModuleBundleCache();
+         bundleCacheRefreshing = false;
+         return true;
+      } else {
+         bundleCacheRefreshing = false;
+         return false;
+      }
+   }
+   
+   // if we can't find a bundleIndex.json, generate it from local eWam service.
+   if (!fs.existsSync(repoParams.basePath + "/bundleIndex.json")) {
+      console.log(repoParams.basePath + "/bundleIndex.json not found, generating from local service")
+
+      generatePackagesIndex().then(() => {
+         readBundleIndex();
+      });
+   } else {
+      readBundleIndex();
+   }
+
 }
 
-function getModulePath(moduleName: string): string {
-   if (moduleBundleCache == undefined) {
-      refreshCache();
-   }
+function findModulePath (moduleName : string) : string {
 
    if (!(moduleName in moduleBundleCache)) {
       return repoParams.basePath + "\\.unbundled\\";
    }
 
    let moduleBundle: tModuleBundle = moduleBundleCache[moduleName];
+
    if (moduleBundle.dependency) {
       return repoParams.basePath + "\\" + repoParams.dependencies_subdir + "\\" + moduleBundle.bundle + "\\" + moduleBundle.delivery;
    } else {
@@ -1809,13 +1846,38 @@ function getModulePath(moduleName: string): string {
    }
 }
 
-connection.onRequest({ method: "getModulePath" },
-   (params: { "moduleName": string }): string => {
+function getModulePath(moduleName: string) : string {
+   return findModulePath(moduleName);
+}
+
+connection.onRequest<{ "moduleName": string }, string, {}> ({ method: "getModulePath" },
+   (params: { "moduleName": string }) : string => {
       return getModulePath(params.moduleName);
    });
 
+   
 
-connection.onRequest({ method: "buildDependenciesRepo" },
+function generatePackagesIndex () : Thenable<Boolean> {
+   let buildPackageIndex = rp({
+      method: 'POST',
+      uri: url + '/api/rest/repository/generatePackagesIndex',
+      body: {
+         "repository_url": repoParams.repository_url,
+         "basePath": repoParams.basePath,
+         "workspace_subdir": repoParams.workspace_subdir,
+         "dependencies_subdir": repoParams.dependencies_subdir
+      },
+      json: true
+   });
+
+   return buildPackageIndex.then((response) => {
+      return true;
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
+   });
+}
+
+connection.onRequest<{}, Boolean, {}>({ method: "buildDependenciesRepo" },
    () => {
       return buildDependenciesRepo();
    });
@@ -1835,11 +1897,13 @@ function buildDependenciesRepo(): Thenable<Boolean> {
 
    return buildRepoReq.then((response) => {
       return true;
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
    });
 
 }
 
-connection.onRequest({ method: "syncWorkspaceRepo" },
+connection.onRequest<{}, Boolean, {}>({ method: "syncWorkspaceRepo" },
    () => {
       return syncWorkspaceRepo();
    });
@@ -1859,11 +1923,13 @@ function syncWorkspaceRepo(): Thenable<Boolean> {
 
    return buildWorkspaceReq.then((response) => {
       return true;
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
    });
 
 }
 
-connection.onRequest({ method: "getLastknownImplemVersion" },
+connection.onRequest<{ "moduleName": string }, number, {}> ({ method: "getLastknownImplemVersion" },
    (param: { "moduleName": string }): number => {
       return getLastknownImplemVersion(param.moduleName);
    });
@@ -1950,10 +2016,9 @@ connection.onRenameRequest((params: RenameParams): WorkspaceEdit => {
       connection.window.showInformationMessage("Rename successfully completed.");
 
       return result;
-   }).catch((response) => {
+   }).catch((rejectReason) => {
+      connection.window.showErrorMessage("Error: " + rejectReason);
       let result: WorkspaceEdit = { changes: {} };
-      // connection.sendNotification({method:"showNotification"}, {type:"error", message:"Rename failed"});
-      connection.window.showErrorMessage("Rename failed : " + response);
       return result;
    });
 });
