@@ -1,3 +1,6 @@
+## Alpha 0.3.3 - *Deliver on January 27, 2017*
+   - [x] Changed default configuration for eWam Service port to comply with default configuration provided by eWam
+
 ## Alpha 0.3.2 - *Deliver on December 21, 2016*
    - [x] Refresh source from TGV
    - [x] Git free compliance
