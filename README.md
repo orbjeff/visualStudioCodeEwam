@@ -76,6 +76,7 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 - [ ] API refactoring
    - [ ] Get read of advanced framework
    - [ ] APIs redesign : API restful (see swapi collections)
+   - [ ] rename API url in /ewam/api/rest/...
    - [ ] Review APIs to use IsValid when necessary (checks entity is valid. Usefull when creating a new module / class to check if doesn't exist and name correct)
    - [ ] Implement better outlining / metainfo production API
       - [ ] Outlines and definitions should be provided after F7 parse
@@ -88,6 +89,7 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
    - [ ] Implement module management (open, save, parse, status update, etc).
    - [ ] Implement metainfo query API
    - [ ] Implement entity access management : local file + synchronization questions  
+   - [ ] Implement "find entity" feature : look for any kind of entity : scenario, class, module, method, variable, constant, etc, and look at it in its container (class or module)
 
 - [ ] Breakpoint management
 - [ ] Debugger
@@ -225,6 +227,11 @@ endProc
 ```
 
 # Changelog
+
+## Alpha 0.3.4 - *Deliver on ...*
+
+## Alpha 0.3.3 - *Deliver on January 27, 2017*
+   - [x] Changed default configuration for eWam Service port to comply with default configuration provided by eWam
 
 ## Alpha 0.3.2 - *Deliver on December 21, 2016*
    - [x] Refresh source from TGV

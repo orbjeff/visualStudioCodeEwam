@@ -2,7 +2,7 @@
    "name": "ewamvscadaptor",
    "displayName": "eWam Plugin",
    "description": "eWam Plugin",
-   "version": "0.3.2",
+   "version": "0.3.3",
    "author": "Wyde",
    "publisher": "mphasiswyde",
    "license" : "MIT",
@@ -250,7 +250,7 @@
          "properties": {
             "ewam.url": {
                "type": "string",
-               "default": "http://127.0.0.1:8082",
+               "default": "http://localhost:9933",
                "description": "End point of your eWam as a service"
             },
             "ewam.applicationLauncher": {
