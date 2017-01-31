@@ -38,6 +38,7 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 
 ## Upcoming tasks
 
+- [ ] dependencies and project Repository should also remove files that don't correspond to classes anymore
 - [ ] Implement contextual commands 
 - [ ] Add watch on bundleIndex.json ? Yes : refresh cache because files may appear and or change bundle location.
 - [ ] Forbid Class/module checkout/modification for dependencies <= maybe, useless since dependencies are checked in (and should be kept by integrator), thus in readonly  
@@ -104,6 +105,16 @@ This plugin leverage the eWam API to let you edit eWam Code With Visual Studio C
 - [ ] Parsing errors iteration 2 : code analyzer feedback
 - [ ] Review "Code Actions" feature : could be implemented using code analyzer
 - [ ] Add watch on bundleIndex.json in order to detect bundle changes
+
+
+#Demos
+
+## First Demo to developers
+
+- start with demo script (see below)
+- Add people in Skype conversation
+- Feedback : review draft emails : provide links to IMUTs for and and evolutions
+- Suggest LiceCAP (show how it works comment ça marche)
 
 ## Demo script
 
@@ -228,7 +239,8 @@ endProc
 
 # Changelog
 
-## Alpha 0.3.4 - *Deliver on ...*
+## Alpha 0.3.4 - *Deliver on January 31, 2017*
+   - [x] Quick fix to open classes from the right location (dependencies / project)
 
 ## Alpha 0.3.3 - *Deliver on January 27, 2017*
    - [x] Changed default configuration for eWam Service port to comply with default configuration provided by eWam

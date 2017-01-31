@@ -1,3 +1,6 @@
+## Alpha 0.3.4 - *Deliver on January 31, 2017*
+   - [x] Quick fix to open classes from the right location (dependencies / project)
+
 ## Alpha 0.3.3 - *Deliver on January 27, 2017*
    - [x] Changed default configuration for eWam Service port to comply with default configuration provided by eWam
 
