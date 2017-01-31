@@ -1749,7 +1749,7 @@ function updateModuleBundleCache() {
          for (let k = 0; k < delivery.entities.length; k++) {
 
             let entity = delivery.entities[k];
-            if (entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||
+            if (/*entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||*/
                entity.exactType == "aModuleDef" || entity.exactType == "aClassDef") {
                moduleBundleCache[entity.name] = {
                   "bundle": bundle.name,
@@ -1774,7 +1774,7 @@ function updateModuleBundleCache() {
          for (let k = 0; k < delivery.entities.length; k++) {
 
             let entity = delivery.entities[k];
-            if (entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||
+            if (/*entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||*/
                entity.exactType == "aModuleDef" || entity.exactType == "aClassDef") {
 
                moduleBundleCache[entity.name] = {
@@ -1840,6 +1840,9 @@ function findModulePath (moduleName : string) : string {
    let moduleBundle: tModuleBundle = moduleBundleCache[moduleName];
 
    if (moduleBundle.dependency) {
+
+      connection.console.log(JSON.stringify(moduleBundle));
+
       return repoParams.basePath + "\\" + repoParams.dependencies_subdir + "\\" + moduleBundle.bundle + "\\" + moduleBundle.delivery;
    } else {
       return repoParams.basePath + "\\" + repoParams.workspace_subdir + "\\" + moduleBundle.bundle + "\\" + moduleBundle.delivery;
