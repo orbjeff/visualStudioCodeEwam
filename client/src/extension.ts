@@ -473,18 +473,16 @@ function openClass(name: string) {
       vscode.window.showErrorMessage("eWam open: Cannot work without opened folder");
       return;
    }
-
+   
    axios.default.get(config.get('url') + '/api/rest/classOrModule/' + name)
       .then((response) => {
-         vscode.window.setStatusBarMessage('eWam Parsing Ok');
-
          languageClient.sendRequest(
             { method: "getModulePath" },
             { "moduleName": name }
          ).then((modulePath: string) => {
             let fileName: string = modulePath + "\\" + name + EXTENSION;
             fileName = path.normalize(fileName);
-
+            
             try {
                fs.accessSync(modulePath)
             } catch (err) {
@@ -494,7 +492,10 @@ function openClass(name: string) {
             if (fs.existsSync(fileName)) {
                fs.chmod(fileName, '0666');
             }
-            fs.writeFile(fileName, response.data["content"], function (err) {
+
+            let responseData : string = response.data['content'];
+
+            fs.writeFile(fileName, responseData, function (err) {
                if (err) throw err;
 
                vscode.workspace.openTextDocument(fileName)
@@ -647,7 +648,8 @@ function checkBeforeSave(doc?: vscode.TextDocument): Thenable<any> {
                            // Retrieve TGV source code version
                            return axios.default.get(config.get('url') + '/api/rest/classOrModule/' + className)
                               .then((sourceResponse) => {
-                                 return compareFiles(modulePath, className, sourceResponse.data["content"]);
+                                 let tgvSource : string = sourceResponse.data["content"];
+                                 return compareFiles(modulePath, className, tgvSource);
                               }).catch((rejectReason: any) => {
                                  vscode.window.showErrorMessage("Error: " + rejectReason);
                               });

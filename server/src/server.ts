@@ -267,7 +267,7 @@ connection.onDidChangeConfiguration((change) => {
    console.log("Loading configuration");
 
    let settings = <Settings>change.settings;
-   url = settings.ewam.url || 'http://127.0.0.1:8082/';
+   url = settings.ewam.url || 'http://1.2.3.4:1/';
    // Revalidate any open text documents
    documents.all().forEach(validateTextDocument);
    
@@ -1088,7 +1088,7 @@ connection.onDefinition(
                      fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
                   }
                   fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
-
+                  
                   return {
                      uri: "file:///" + outFileName.replace(/\\/g, '/'),
                      range: {
@@ -1749,14 +1749,13 @@ function updateModuleBundleCache() {
          for (let k = 0; k < delivery.entities.length; k++) {
 
             let entity = delivery.entities[k];
-            if (/*entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||*/
+            if (entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||
                entity.exactType == "aModuleDef" || entity.exactType == "aClassDef") {
                moduleBundleCache[entity.name] = {
                   "bundle": bundle.name,
                   "delivery": delivery.name,
                   "dependency": false
                };
-
             }
          }
       }
@@ -1774,7 +1773,7 @@ function updateModuleBundleCache() {
          for (let k = 0; k < delivery.entities.length; k++) {
 
             let entity = delivery.entities[k];
-            if (/*entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||*/
+            if (entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||
                entity.exactType == "aModuleDef" || entity.exactType == "aClassDef") {
 
                moduleBundleCache[entity.name] = {
@@ -1840,9 +1839,6 @@ function findModulePath (moduleName : string) : string {
    let moduleBundle: tModuleBundle = moduleBundleCache[moduleName];
 
    if (moduleBundle.dependency) {
-
-      connection.console.log(JSON.stringify(moduleBundle));
-
       return repoParams.basePath + "\\" + repoParams.dependencies_subdir + "\\" + moduleBundle.bundle + "\\" + moduleBundle.delivery;
    } else {
       return repoParams.basePath + "\\" + repoParams.workspace_subdir + "\\" + moduleBundle.bundle + "\\" + moduleBundle.delivery;
