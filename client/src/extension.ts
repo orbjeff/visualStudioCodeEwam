@@ -80,7 +80,7 @@ function openIDE() : Thenable<Boolean> {
 }
 
 function stopService() : Thenable<Boolean> {
-   return axios.default.post(config.get('url') + '/api/rest/system/stopservice')
+   return axios.default.post(config.get('url') + '/ewam/api/rest/system/stopservice')
    .then( (response) => {
       if (response.data == true) {
          return true;
@@ -277,7 +277,7 @@ function runContext() {
       config = vscode.workspace.getConfiguration('ewam');
 
       if (choice == "try class") {
-         axios.default.post(config.get('url') + '/api/rest/tryClass/' + className, {})
+         axios.default.post(config.get('url') + '/ewam/api/rest/tryClass/' + className, {})
             .then((response: any) => {
 
             })
@@ -295,7 +295,7 @@ function runContext() {
 
                } else {
 
-                  axios.default.post(config.get('url') + '/api/rest/tryMethod/' + className + '/' + methodName, {})
+                  axios.default.post(config.get('url') + '/ewam/api/rest/tryMethod/' + className + '/' + methodName, {})
                      .then((response: any) => {
 
                      })
@@ -308,11 +308,11 @@ function runContext() {
 
       } else if (choice == "try scenario") {
 
-         axios.default.get(config.get('url') + '/api/rest/classOrModule/' + className + '/scenarios', {})
+         axios.default.get(config.get('url') + '/ewam/api/rest/classOrModule/' + className + '/scenarios', {})
             .then((response: any) => {
-               vscode.window.showQuickPick(response.data)
+               vscode.window.showQuickPick(getRenamedData(response.data))
                   .then((selection) => {
-                     axios.default.post(config.get('url') + '/api/rest/tryScenario/' + className + '/' + selection["label"], {})
+                     axios.default.post(config.get('url') + '/ewam/api/rest/tryScenario/' + className + '/' + selection["name"], {})
                   });
             })
             .catch((rejectReason: any) => {
@@ -347,7 +347,7 @@ function SyncTGV(): any {
    vscode.window.showInformationMessage(
       "Syncing your environment's TGVs...");
 
-   return axios.default.post(config.get('url') + '/api/rest/repository/synchronize', {})
+   return axios.default.post(config.get('url') + '/ewam/api/rest/repository/synchronize', {})
       .then((response: any) => {
          vscode.window.showInformationMessage("TGV sync done.");
       }).catch((rejectReason: any) => {
@@ -428,7 +428,7 @@ function refreshUI() {
    var name = getOpenClassName();
 
    if (name != '') {
-      axios.default.get(config.get('url') + '/api/rest/classOrModule/' + name + '/entityStatus')
+      axios.default.get(config.get('url') + '/ewam/api/rest/classOrModule/' + name + '/entityStatus')
       .then(function (response) {
          if (response.data["checkedOut"]) {
             checkInBarItem.show();
@@ -474,7 +474,7 @@ function openClass(name: string) {
       return;
    }
    
-   axios.default.get(config.get('url') + '/api/rest/classOrModule/' + name)
+   axios.default.get(config.get('url') + '/ewam/api/rest/classOrModule/' + name)
       .then((response) => {
          languageClient.sendRequest(
             { method: "getModulePath" },
@@ -570,7 +570,7 @@ function getDefVersion(currentSource: string): number {
 
 function isCheckOut(className: string): Thenable<Boolean> {
 
-   return axios.default.get(config.get('url') + '/api/rest/classOrModule/' + className + '/entityStatus')
+   return axios.default.get(config.get('url') + '/ewam/api/rest/classOrModule/' + className + '/entityStatus')
       .then((statusResponse) => {
          if (statusResponse.data["checkedOut"]) {
             return true;
@@ -635,7 +635,7 @@ function checkBeforeSave(doc?: vscode.TextDocument): Thenable<any> {
                .then((lastKnownImplem: number) => {
 
                   // Retrieve status to get current implem
-                  return axios.default.get(config.get('url') + '/api/rest/classOrModule/' + className + '/entityStatus')
+                  return axios.default.get(config.get('url') + '/ewam/api/rest/classOrModule/' + className + '/entityStatus')
                      .then((statusResponse) => {
 
                         // Compare remote version to local version => Diff if differs
@@ -646,7 +646,7 @@ function checkBeforeSave(doc?: vscode.TextDocument): Thenable<any> {
                         if (lastKnownImplem != -1 && lastKnownImplem != statusResponse.data["implemVersion"]) {
 
                            // Retrieve TGV source code version
-                           return axios.default.get(config.get('url') + '/api/rest/classOrModule/' + className)
+                           return axios.default.get(config.get('url') + '/ewam/api/rest/classOrModule/' + className)
                               .then((sourceResponse) => {
                                  let tgvSource : string = sourceResponse.data["content"];
                                  return compareFiles(modulePath, className, tgvSource);
@@ -671,7 +671,7 @@ function checkBeforeSave(doc?: vscode.TextDocument): Thenable<any> {
 
 function GenericPostOperation(name: string, op: string) {
 
-   axios.default.post(config.get('url') + '/api/rest/classOrModule/' + name + '/' + op, {})
+   axios.default.post(config.get('url') + '/ewam/api/rest/classOrModule/' + name + '/' + op, {})
       .then(function (response) {
          refreshUI();
       })
@@ -682,7 +682,7 @@ function GenericPostOperation(name: string, op: string) {
 
 function checkOutClass(name: string) {
 
-   axios.default.post(config.get('url') + '/api/rest/classOrModule/' + name + '/checkOut', {})
+   axios.default.post(config.get('url') + '/ewam/api/rest/classOrModule/' + name + '/checkOut', {})
       .then(function (response) {
          refreshUI();
          languageClient.sendRequest(
@@ -700,7 +700,7 @@ function checkOutClass(name: string) {
 
 function checkInClass(name: string) {
    config = vscode.workspace.getConfiguration('ewam');
-   axios.default.post(config.get('url') + '/api/rest/classOrModule/' + name + '/checkIn', {})
+   axios.default.post(config.get('url') + '/ewam/api/rest/classOrModule/' + name + '/checkIn', {})
       .then(function (response) {
          // console.log(vscode.workspace.rootPath);
          var fileName = vscode.workspace.rootPath + '\\' + name + EXTENSION;
@@ -868,18 +868,12 @@ function classTree() {
       uri.lastIndexOf('/') + 1, uri.lastIndexOf('.')
    );
 
-   // let signatureReq = rp({
-   //     method: 'POST',
-   //     uri: url + '/api/rest/classOrModule/' + moduleName + '/signaturehelp/',
-   //     body: body,
-   //     json: true });
-
    if (!vscode.workspace.rootPath) {
       vscode.window.showErrorMessage("eWam Class Tree: Cannot work without opened folder");
       return;
    }
 
-   axios.default.post(config.get('url') + '/api/rest/classOrModule/' + moduleName + '/showInTree')
+   axios.default.post(config.get('url') + '/ewam/api/rest/classOrModule/' + moduleName + '/showInTree')
       .then(function (response) {
          // console.log(response);
       })
@@ -934,8 +928,13 @@ function getModuleDocumentation(moduleName: string): string | Thenable<string> {
 
 interface getScenarioCallBack { (className: string, scenarioName: string): void }
 
-function getDataAsTable(response): any[] {
-   return response.data;
+function getRenamedData(data): any[] {
+   
+   for (let index : number = 0; index < data.length; index++) {
+      data[index]["label"] = data[index]["name"];
+   }
+   
+   return data;
 }
 
 function getDataAsString(response): string {
@@ -944,12 +943,12 @@ function getDataAsString(response): string {
 
 function getScenario(classname: string, callBack: getScenarioCallBack) {
 
-   axios.default.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/scenarios')
+   axios.default.get(config.get('url') + '/ewam/api/rest/classOrModule/' + classname + '/scenarios')
       .then(function (response) {
 
-         vscode.window.showQuickPick(getDataAsTable(response))
+         vscode.window.showQuickPick(getRenamedData(response.data))
             .then((selection) => {
-               callBack(classname, selection["label"])
+               callBack(classname, selection["name"])
             });
       })
       .catch((rejectReason: any) => {
@@ -962,7 +961,11 @@ function newClass(parentClass: string) {
       vscode.window.showInputBox({ prompt: 'Class name', value: '' })
          .then(name => {
             if (name != undefined) {
-               axios.default.put(config.get('url') + '/api/rest/classOrModule/', { content: '', ancestor: parentClass, name: name })
+               axios.default.put(config.get('url') + '/ewam/api/rest/classOrModule/' + name + '/create', 
+                  {
+                     "implem" : { "content": "", "ancestor": parentClass, "name": name }
+                  }
+               )
                .then(function (response) {
                   // console.log(response);
                   openClass(name);
@@ -980,7 +983,10 @@ function newModule() {
    vscode.window.showInputBox({ prompt: 'Module name', value: '' })
       .then(name => {
          if (name != undefined) {
-            axios.default.put(config.get('url') + '/api/rest/classOrModule/', { content: '', ancestor: '', name: name })
+            axios.default.put(config.get('url') + '/ewam/api/rest/classOrModule/' + name + '/create',
+               {
+                  "implem": { "content": '', "ancestor": "", "name": name }
+               })
                .then(function (response) {
                   // console.log(response);
                   openClass(name);
@@ -993,7 +999,7 @@ function newModule() {
 
 function editScenario(classname: string, scenarioName: string) {
 
-   axios.default.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/scenarios/' + scenarioName)
+   axios.default.get(config.get('url') + '/ewam/api/rest/classOrModule/' + classname + '/scenarios/' + scenarioName)
       .then(function (response) {
 
       })
@@ -1016,9 +1022,9 @@ function metaInfo() {
    if (classname != '') {
       vscode.window.showQuickPick(['Variables', 'Methods', 'Parents', 'Descendants', 'Sisters', 'Types'], { placeHolder: 'What meta data do you want?' }).then(choice => {
          if (choice != undefined) {
-            axios.default.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/' + choice)
+            axios.default.get(config.get('url') + '/ewam/api/rest/classOrModule/' + classname + '/' + choice)
                .then(function (response) {
-                  vscode.window.showQuickPick(getDataAsTable(response)).then(selected => {
+                  vscode.window.showQuickPick(getRenamedData(response.data)).then(selected => {
                      if (selected != undefined) {
                         if (choice == 'Variables') {
                            // vscode.window.showQuickPick(['Override']).then(action => {
@@ -1039,15 +1045,15 @@ function metaInfo() {
                               if (action == 'Toggle Break Point') {
                                  // axios.default.post(config.get('url') + selected.location + '/breakPoint', {})
                                  // rest/classOrModule/{name}/methods/{methodName}/breakPoint */
-                                 console.log(config.get('url') + '/api/rest/classOrModule/' + classname + '/methods/' + selected.label + '/breakPoint');
-                                 axios.default.post(config.get('url') + '/api/rest/classOrModule/' + classname + '/methods/' + selected.label + '/breakPoint', {})
+                                 console.log(config.get('url') + '/ewam/api/rest/classOrModule/' + classname + '/methods/' + selected.label + '/breakPoint');
+                                 axios.default.post(config.get('url') + '/ewam/api/rest/classOrModule/' + classname + '/methods/' + selected.label + '/breakPoint', {})
                                     .then((method) => {
 
                                        refreshUI();
                                     });
                               } else if (action == 'Override') {
                                  //axios.default.get(config.get('url') + selected.location)
-                                 axios.default.get(config.get('url') + '/api/rest/classOrModule/' + classname + '/methods/' + selected.label, {})
+                                 axios.default.get(config.get('url') + '/ewam/api/rest/classOrModule/' + classname + '/methods/' + selected.label, {})
                                     .then((response) => {
 
                                        editor = vscode.window.activeTextEditor;
@@ -1119,9 +1125,9 @@ function createNewScenario(className: string) {
 
             let _rp = rp({
                method: 'PUT',
-               uri: config.get('url') + '/api/rest/classOrModule/' + className + '/createScenario/' + scenarioType,
+               uri: config.get('url') + '/ewam/api/rest/classOrModule/' + className + '/createScenario/' + scenarioType,
                json: true,
-               body: "" + scenarioName + ""
+               body: { "scenarioName": scenarioName }
             });
 
             _rp.then(() => {
@@ -1136,7 +1142,7 @@ function createNewScenario(className: string) {
    let _rp = rp(
       {
          method: 'GET',
-         uri: config.get('url') + '/api/rest/classOrModule/' + className + '/possibleScenario/',
+         uri: config.get('url') + '/ewam/api/rest/classOrModule/' + className + '/possibleScenario/',
          json: true
       });
 
@@ -1205,19 +1211,16 @@ function searchClass(callBackFunc: searchClassCallBack, promptText: string = 'Cl
             return;
          }
 
-
-         axios.default.get(config.get('url') + '/api/rest/searchEntities',
+         axios.default.get(config.get('url') + '/ewam/api/rest/searchEntities',
             {
-               params: {
-                  q: criteria
-               }
+               data: { "searchParams": { "q": criteria+"*", "_class": true, "_module":true } }
             })
             .then(function (response) {
                // console.log(response);
-               if (getDataAsTable(response).length == 0) {
+               if (getRenamedData(response.data).length == 0) {
                   vscode.window.showWarningMessage(criteria + " not found.");
                } else {
-                  vscode.window.showQuickPick(getDataAsTable(response))
+                  vscode.window.showQuickPick(getRenamedData(response.data))
                   .then((selection) => {
                      if (selection != undefined) {
                         if (selection.exactType == "aClassDef" || selection.exactType == "aReimplemModuleDef" ||
@@ -1248,7 +1251,7 @@ function run() {
    if (launchMode == 'class') {
 
       axios.default.post(
-         config.get('url') + '/api/rest/tryClass/' + launchClass)
+         config.get('url') + '/ewam/api/rest/tryClass/' + launchClass)
          .then((response) => { })
          .catch((rejectReason: any) => {
             vscode.window.showErrorMessage("Error: " + rejectReason);
@@ -1257,7 +1260,7 @@ function run() {
    } else if (launchMode == 'method') {
 
       axios.default.post(
-         config.get('url') + '/api/rest/tryMethod/' + launchClass + '/' + launchItem,
+         config.get('url') + '/ewam/api/rest/tryMethod/' + launchClass + '/' + launchItem,
          config.get('applicationLauncherParams'))
          .then((response) => { })
          .catch((rejectReason: any) => {
@@ -1267,7 +1270,7 @@ function run() {
    } else if (launchMode == 'scenario') {
 
       axios.default.post(
-         config.get('url') + '/api/rest/tryScenario/' + launchClass + '/' + launchItem)
+         config.get('url') + '/ewam/api/rest/tryScenario/' + launchClass + '/' + launchItem)
          .then((response) => { })
          .catch((rejectReason: any) => {
             vscode.window.showErrorMessage("Error: " + rejectReason);
