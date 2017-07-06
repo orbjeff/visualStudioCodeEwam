@@ -74,7 +74,7 @@ interface tCompletionList {
 };
 
 interface tCompletionItem {
-   label: string,
+   name: string,
    documentation: string,
    detail: string,
    insertText: string,
@@ -82,7 +82,6 @@ interface tCompletionItem {
 };
 
 interface tEntity {
-   label: string,
    name: string,
    ownerName: string,
    exactType: string,
@@ -267,7 +266,7 @@ connection.onDidChangeConfiguration((change) => {
    console.log("Loading configuration");
 
    let settings = <Settings>change.settings;
-   url = settings.ewam.url || 'http://127.0.0.1:8082/';
+   url = settings.ewam.url || 'http://1.2.3.4:1/';
    // Revalidate any open text documents
    documents.all().forEach(validateTextDocument);
    
@@ -328,7 +327,7 @@ connection.onCompletion(
          textDocumentPosition.textDocument.uri.lastIndexOf('/') + 1, textDocumentPosition.textDocument.uri.lastIndexOf('.')
       );
 
-      var body = {
+      var suggestParams = {
          implem: {
             name: className,
             ancestor: "",
@@ -343,9 +342,9 @@ connection.onCompletion(
 
       var _rp = rp({
          method: 'POST',
-         uri: url + '/api/rest/classOrModule/' + className + '/suggest',
+         uri: url + '/ewam/api/rest/classOrModule/' + className + '/suggest',
          json: true,
-         body: body
+         body: { "suggestParams": suggestParams }
       });
 
       return _rp.then((response: tCompletionList) => {
@@ -358,13 +357,13 @@ connection.onCompletion(
 
          for (let index: number = 0; index < response.items.length; index++) {
             result.items.push({
-               "label": response.items[index].label,
+               "label": response.items[index].name,
                "kind": getCompletionKindFromEntityClass(response.items[index].entity.baseType),
                "detail": response.items[index].detail,
                "documentation": response.items[index].documentation,
                "insertText": response.items[index].insertText
             });
-
+            
             // console.log("   " + JSON.stringify({
             //    "label": response.items[index].label,
             //    "kind": getCompletionKindFromEntityClass(response.items[index].entity.baseType),
@@ -425,9 +424,9 @@ function getHtmlDocFor(className): string {
 
    for (var index = classInfo[className].metaInfo.parents.length - 1; index >= 0; index--) {
       content += indent + '<a style="color: #338eff;" href="file:///' +
-         getModulePath(classInfo[className].metaInfo.parents[index].label) + '\\' +
-         classInfo[className].metaInfo.parents[index].label + '.god">' +
-         classInfo[className].metaInfo.parents[index].label + '</a><br/>\n';
+         getModulePath(classInfo[className].metaInfo.parents[index].name) + '\\' +
+         classInfo[className].metaInfo.parents[index].name + '.god">' +
+         classInfo[className].metaInfo.parents[index].name + '</a><br/>\n';
 
       indent += '&nbsp;&nbsp;&nbsp;';
    }
@@ -438,9 +437,9 @@ function getHtmlDocFor(className): string {
 
    for (var index = 0; index < classInfo[className].metaInfo.childs.length; index++) {
       content += indent + '        <li><a style="color: #338eff;" href="file:///' +
-         getModulePath(classInfo[className].metaInfo.childs[index].label) + '\\' +
-         classInfo[className].metaInfo.childs[index].label + '.god">' +
-         classInfo[className].metaInfo.childs[index].label + '</a></li>\n';
+         getModulePath(classInfo[className].metaInfo.childs[index].name) + '\\' +
+         classInfo[className].metaInfo.childs[index].name + '.god">' +
+         classInfo[className].metaInfo.childs[index].name + '</a></li>\n';
 
       // indent += '&nbsp;&nbsp;&nbsp;';
    }
@@ -454,9 +453,9 @@ function getHtmlDocFor(className): string {
 
    for (var index = 0; index < classInfo[className].metaInfo.sisters.length; index++) {
       content += '        <li><a style="color: #338eff;" href="file:///' +
-         getModulePath(classInfo[className].metaInfo.sisters[index].label) + '\\' +
-         classInfo[className].metaInfo.sisters[index].label + '.god">' +
-         classInfo[className].metaInfo.sisters[index].label + '</a></li>\n';
+         getModulePath(classInfo[className].metaInfo.sisters[index].name) + '\\' +
+         classInfo[className].metaInfo.sisters[index].name + '.god">' +
+         classInfo[className].metaInfo.sisters[index].name + '</a></li>\n';
    }
 
    content += '      </ul>\n';
@@ -475,7 +474,7 @@ function updateLastImplemVersion(className: string) {
    var _rp = rp(
       {
          method: 'GET',
-         uri: url + '/api/rest/classOrModule/' + className + '/entityStatus',
+         uri: url + '/ewam/api/rest/classOrModule/' + className + '/entityStatus',
          json: true
       });
 
@@ -499,12 +498,14 @@ function updateMetaInfoForClass(classname: string, source: string): Thenable<tMe
    var _rp = rp(
       {
          method: 'GET',
-         uri: url + '/api/rest/classOrModule/' + classname + '/metainfo',
-         body: {
-            "name": classname,
-            "ancestor": "",
-            "content": source
-         },
+         uri: url + '/ewam/api/rest/classOrModule/' + classname + '/metainfo',
+         // body: {
+         //    "implem" : {
+         //       "name": classname,
+         //       "ancestor": "",
+         //       "content": source
+         //    }
+         // },
          json: true
       });
 
@@ -682,12 +683,14 @@ connection.onRequest<tParseParam, tParseResult, {}> ({ method: "parse" }, (param
    var _rp = rp(
       {
          method: 'POST',
-         uri: url + '/api/rest/classOrModule/' + params.classname + '/parse',
+         uri: url + '/ewam/api/rest/classOrModule/' + params.classname + '/parse',
          body:
          {
-            "name": params.classname,
-            "ancestor": "",
-            "content": params.source
+            "implem": {
+               "name": params.classname,
+               "ancestor": "",
+               "content": params.source
+            }
          },
          json: true
       });
@@ -743,12 +746,14 @@ connection.onRequest<tParseParam, tParseResult, {}> ({ method: "save" },
 
       var _rp = rp({
          method: 'POST',
-         uri: url + '/api/rest/classOrModule/' + params.classname + '/save',
+         uri: url + '/ewam/api/rest/classOrModule/' + params.classname + '/save',
          body:
          {
-            "name": params.classname,
-            "ancestor": "",
-            "content": params.source
+            "implem": {
+               "name": params.classname,
+               "ancestor": "",
+               "content": params.source
+            }
          },
          json: true
       });
@@ -1025,21 +1030,9 @@ connection.onDefinition(
          return null;
       }
 
-      // let repoReq = rp({
-      //     method: 'GET',
-      //     uri: url + '/api/rest/repository/path', 
-      //     json: true });
-
       // outline.entity is defined in a class or module
       // Get definition position inside the owner
       if (outline.entity.exactType == "aLocalVarDesc") {
-
-         // let definitionReq = rp({
-         //    method: 'GET',
-         //    uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
-         //    json: true
-         // });
-
 
          for (var index = 0; index < classInfo[moduleName].metaInfo.locals.length; index++) {
 
@@ -1065,13 +1058,13 @@ connection.onDefinition(
 
          let definitionReq = rp({
             method: 'GET',
-            uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
+            uri: url + '/ewam/api/rest/classOrModule/' + outline.entity.ownerName + '/definition/' + outline.name,
             json: true
          });
 
          let contentReq = rp({
             method: 'GET',
-            uri: url + '/api/rest/classOrModule/' + outline.entity.ownerName,
+            uri: url + '/ewam/api/rest/classOrModule/' + outline.entity.ownerName,
             json: true
          });
 
@@ -1088,7 +1081,7 @@ connection.onDefinition(
                      fs.chmod(outFileName.replace(/\\/g, '/'), '0666');
                   }
                   fs.writeFile(outFileName.replace(/\\/g, '/'), response["content"]);
-
+                  
                   return {
                      uri: "file:///" + outFileName.replace(/\\/g, '/'),
                      range: {
@@ -1115,7 +1108,7 @@ connection.onDefinition(
 
          let contentReq = rp({
             method: 'GET',
-            uri: url + '/api/rest/classOrModule/' + outline.name,
+            uri: url + '/ewam/api/rest/classOrModule/' + outline.name,
             json: true
          });
 
@@ -1190,7 +1183,7 @@ connection.onReferences(
 
       let whereUsedReq = rp({
          method: 'GET',
-         uri: url + '/api/rest/entity/' + ownerName + '/' + outline.entity.label + '/WhereUsed',
+         uri: url + '/ewam/api/rest/entity/' + ownerName + '/' + outline.entity.name + '/WhereUsed',
          json: true
       });
 
@@ -1307,7 +1300,7 @@ connection.onSignatureHelp(
       var line = lines[docPosition.position.line];
 
 
-      var body = {
+      var signatureParams = {
          implem: {
             name: moduleName,
             ancestor: "",
@@ -1322,8 +1315,8 @@ connection.onSignatureHelp(
 
       let signatureReq = rp({
          method: 'POST',
-         uri: url + '/api/rest/classOrModule/' + moduleName + '/signaturehelp/',
-         body: body,
+         uri: url + '/ewam/api/rest/classOrModule/' + moduleName + '/signaturehelp/',
+         body: { "signatureParams": signatureParams },
          json: true
       });
 
@@ -1672,7 +1665,8 @@ connection.onWorkspaceSymbol(
 
       let contentReq = rp({
          method: 'GET',
-         uri: url + '/api/rest/searchEntities?q=' + params.query,
+         uri: url + '/ewam/api/rest/searchEntities',
+         body: { "searchParams": {"q":params.query, "_class": true, "_module":true} },
          json: true
       });
 
@@ -1686,13 +1680,13 @@ connection.onWorkspaceSymbol(
                let entity: tEntity = entities[index];
 
                if (entity.exactType == "aModuleDef" || entity.exactType == "aClassDef") {
-                  fileName = repoParams.basePath.replace(/\\/g, '/') + '/' + entity.label + '.gold';
+                  fileName = repoParams.basePath.replace(/\\/g, '/') + '/' + entity.name + '.gold';
                } else {
                   fileName = repoParams.basePath.replace(/\\/g, '/') + '/' + entity.ownerName + '.gold';
                }
 
                let symbol: SymbolInformation = {
-                  "name": entity.label,
+                  "name": entity.name,
                   "kind": getSymbolKindFromEntityClass(entity.baseType),
                   "containerName": entity.ownerName,
                   "location": {
@@ -1749,14 +1743,13 @@ function updateModuleBundleCache() {
          for (let k = 0; k < delivery.entities.length; k++) {
 
             let entity = delivery.entities[k];
-            if (/*entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||*/
+            if (entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||
                entity.exactType == "aModuleDef" || entity.exactType == "aClassDef") {
                moduleBundleCache[entity.name] = {
                   "bundle": bundle.name,
                   "delivery": delivery.name,
                   "dependency": false
                };
-
             }
          }
       }
@@ -1774,7 +1767,7 @@ function updateModuleBundleCache() {
          for (let k = 0; k < delivery.entities.length; k++) {
 
             let entity = delivery.entities[k];
-            if (/*entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||*/
+            if (entity.exactType == "aModuleImplem" || entity.exactType == "aClassImplem" ||
                entity.exactType == "aModuleDef" || entity.exactType == "aClassDef") {
 
                moduleBundleCache[entity.name] = {
@@ -1840,9 +1833,6 @@ function findModulePath (moduleName : string) : string {
    let moduleBundle: tModuleBundle = moduleBundleCache[moduleName];
 
    if (moduleBundle.dependency) {
-
-      connection.console.log(JSON.stringify(moduleBundle));
-
       return repoParams.basePath + "\\" + repoParams.dependencies_subdir + "\\" + moduleBundle.bundle + "\\" + moduleBundle.delivery;
    } else {
       return repoParams.basePath + "\\" + repoParams.workspace_subdir + "\\" + moduleBundle.bundle + "\\" + moduleBundle.delivery;
@@ -1863,12 +1853,14 @@ connection.onRequest<{ "moduleName": string }, string, {}> ({ method: "getModule
 function generatePackagesIndex () : Thenable<Boolean> {
    let buildPackageIndex = rp({
       method: 'POST',
-      uri: url + '/api/rest/repository/generatePackagesIndex',
-      body: {
-         "repository_url": repoParams.repository_url,
-         "basePath": repoParams.basePath,
-         "workspace_subdir": repoParams.workspace_subdir,
-         "dependencies_subdir": repoParams.dependencies_subdir
+      uri: url + '/ewam/api/rest/repository/generatePackagesIndex',
+      body: { 
+         "repoParam": {
+            "repository_url": repoParams.repository_url,
+            "basePath": repoParams.basePath,
+            "workspace_subdir": repoParams.workspace_subdir,
+            "dependencies_subdir": repoParams.dependencies_subdir
+         }
       },
       json: true
    });
@@ -1888,12 +1880,14 @@ connection.onRequest<{}, Boolean, {}>({ method: "buildDependenciesRepo" },
 function buildDependenciesRepo(): Thenable<Boolean> {
    let buildRepoReq = rp({
       method: 'POST',
-      uri: url + '/api/rest/repository/buildDependenciesRepo',
+      uri: url + '/ewam/api/rest/repository/buildDependenciesRepo',
       body: {
-         "repository_url": repoParams.repository_url,
-         "basePath": repoParams.basePath,
-         "workspace_subdir": repoParams.workspace_subdir,
-         "dependencies_subdir": repoParams.dependencies_subdir
+         "repoParam": {
+            "repository_url": repoParams.repository_url,
+            "basePath": repoParams.basePath,
+            "workspace_subdir": repoParams.workspace_subdir,
+            "dependencies_subdir": repoParams.dependencies_subdir
+         }
       },
       json: true
    });
@@ -1914,12 +1908,14 @@ connection.onRequest<{}, Boolean, {}>({ method: "syncWorkspaceRepo" },
 function syncWorkspaceRepo(): Thenable<Boolean> {
    let buildWorkspaceReq = rp({
       method: 'POST',
-      uri: url + '/api/rest/repository/buildProjectRepoFromIndex',
+      uri: url + '/ewam/api/rest/repository/buildProjectRepoFromIndex',
       body: {
-         "repository_url": repoParams.repository_url,
-         "basePath": repoParams.basePath,
-         "workspace_subdir": repoParams.workspace_subdir,
-         "dependencies_subdir": repoParams.dependencies_subdir
+         "repoParam": {
+            "repository_url": repoParams.repository_url,
+            "basePath": repoParams.basePath,
+            "workspace_subdir": repoParams.workspace_subdir,
+            "dependencies_subdir": repoParams.dependencies_subdir
+         }
       },
       json: true
    });
@@ -1981,14 +1977,16 @@ connection.onRenameRequest((params: RenameParams): WorkspaceEdit => {
 
    let renameReq = rp({
       method: 'POST',
-      uri: url + '/api/rest/entity/' + ownerName + '/' + entityOutline.entity.label + '/rename',
+      uri: url + '/ewam/api/rest/entity/' + ownerName + '/' + entityOutline.entity.name + '/rename',
       body: {
-         "newName": params.newName,
-         "repoParam": {
-            "repository_url": repoParams.repository_url,
-            "basePath": repoParams.basePath,
-            "workspace_subdir": repoParams.workspace_subdir,
-            "dependencies_subdir": repoParams.dependencies_subdir
+         "renameParams": {
+            "newName": params.newName,
+            "repoParam": {
+               "repository_url": repoParams.repository_url,
+               "basePath": repoParams.basePath,
+               "workspace_subdir": repoParams.workspace_subdir,
+               "dependencies_subdir": repoParams.dependencies_subdir
+            }
          }
       },
       json: true

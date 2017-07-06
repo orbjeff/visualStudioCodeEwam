@@ -1,3 +1,12 @@
+## Alpha 0.3.5 - *Deliver on July 06, 2017*
+   > /!\ Major API change : don't update unless WxWamAPI bundles have been installed in your environment. /!\
+   - [x] Added .gitignore in Dev
+   - [x] Fixed dependencies generation discrepencies (including file UTF8 encoding)
+   - [x] Fixed source code character encoding problems
+   - [x] Removed incorrect "eWam Parsing Ok" for now. Will rework this feature.
+   - [x] Fixed default service network address to 127.0.0.1 rather then localhost
+   - [x] Cut AdvancedFramework dependency for serialisation and REST routing
+
 ## Alpha 0.3.4 - *Deliver on January 31, 2017*
    - [x] Quick fix to open classes from the right location (dependencies / project)
 

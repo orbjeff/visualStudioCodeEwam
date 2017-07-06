@@ -1,7 +1,7 @@
 {
    "name": "goldserver",
    "description": "eWam Plugin - Language Server",
-   "version": "0.3.3",
+   "version": "0.3.5",
    "author": "Wyde",
    "license": "MIT",
    "repository": {
@@ -10,10 +10,10 @@
    },
    "engines": {
       "vscode": "^1.6.1",
-		"node": "*"
+      "node": "*"
    },
    "dependencies": {
-		"vscode-languageserver": "^2.6.0",
+      "vscode-languageserver": "^2.6.0",
       "vscode-languageserver-types": "^1.0.4",
       "request": "^2.75.0",
       "request-promise": "^4.1.1",
@@ -28,8 +28,8 @@
    },
    "_comments_02": "postinstall: needed to get the typings, and requires the addition of above vscode devDependency ... ",
    "scripts": {
-		"compile": "installServerIntoExtension ../client ./package.json ./tsconfig.json && tsc -p .",
-		"watch": "installServerIntoExtension ../client ./package.json ./tsconfig.json && tsc --watch -p .",
+      "compile": "installServerIntoExtension ../client ./package.json ./tsconfig.json && tsc -p .",
+      "watch": "installServerIntoExtension ../client ./package.json ./tsconfig.json && tsc --watch -p .",
       "postinstall": "node ./node_modules/vscode/bin/install"
    }
 }
