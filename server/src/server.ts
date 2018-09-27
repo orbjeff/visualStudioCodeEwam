@@ -491,8 +491,10 @@ function updateLastImplemVersion(className: string) {
 function updateMetaInfoForClass(classname: string, source: string): Thenable<tMetaInfo> {
 
    if (isUpdatingMetaInfo == true || classname == undefined || classname == '') {
-      let dummyPromise = new Promise(() => { return {} });
-      return dummyPromise;
+        //let dummyMetaInfo : tMetaInfo;
+        let dummyPromise : Thenable<tMetaInfo>;
+        //let dummyPromise = new Promise(() => { return dummyMetaInfo });
+        return dummyPromise;
    }
 
    var _rp = rp(
